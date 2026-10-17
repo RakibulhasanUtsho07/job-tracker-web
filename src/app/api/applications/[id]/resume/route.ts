@@ -5,9 +5,6 @@ import { getDatabase } from "@/lib/database";
 import { errorResponse } from "@/lib/http";
 import { sanitizeOriginalFilename } from "@/lib/application-validation";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
