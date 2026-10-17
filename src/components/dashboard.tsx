@@ -48,8 +48,6 @@ export function CandidateDashboard() {
   const [loadError, setLoadError] = useState("");
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setLoadError("");
     try {
       const sessionResponse = await fetch("/api/auth/session", { cache: "no-store" });
       const session = sessionResponse.ok ? await sessionResponse.json() : { user: null };
@@ -119,7 +117,7 @@ export function CandidateDashboard() {
       {loading ? (
         <div className="loading-placeholder" aria-label="Loading applications" aria-busy="true"><div className="loading-line" /><div className="loading-line" /></div>
       ) : loadError ? (
-        <div className="form-notice form-notice-error" role="alert"><div><strong>Something did not load.</strong>{loadError}<p><button className="auth-link" type="button" onClick={() => void load()}>Try again</button></p></div></div>
+        <div className="form-notice form-notice-error" role="alert"><div><strong>Something did not load.</strong>{loadError}<p><button className="auth-link" type="button" onClick={() => { setLoading(true); setLoadError(""); void load(); }}>Try again</button></p></div></div>
       ) : visibleApplications.length === 0 ? (
         <div className="application-empty">
           <span aria-hidden="true">✳</span>
