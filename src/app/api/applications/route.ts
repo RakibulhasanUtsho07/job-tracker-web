@@ -89,7 +89,8 @@ export async function POST(request: Request) {
   ).get(session.user.id, key);
   if (prior) return replayResponse(prior);
 
-  const contentLengthHeader = request.headers.get("content-length");\n  const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0;
+  const contentLengthHeader = request.headers.get("content-length");
+  const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0;
   if (Number.isFinite(contentLength) && contentLength > MAX_MULTIPART_BODY_BYTES) {
     return errorResponse(413, "FILE_TOO_LARGE", "The upload is too large. Choose a PDF up to 5 MB.");
   }
