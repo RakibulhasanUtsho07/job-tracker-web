@@ -7,6 +7,7 @@ import { useState, type FormEvent } from "react";
 type Props = { returnTo: string };
 
 export function SignInForm({ returnTo }: Props) {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
