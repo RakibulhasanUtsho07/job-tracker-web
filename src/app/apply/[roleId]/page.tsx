@@ -10,8 +10,6 @@ export function generateStaticParams() {
   return JOB_ROLES.map((role) => ({ roleId: role.id }));
 }
 
-export const dynamicParams = false;
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { roleId } = await params;
   const role = getRoleById(roleId);
