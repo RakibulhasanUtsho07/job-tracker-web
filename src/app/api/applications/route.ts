@@ -4,7 +4,7 @@ import path from "node:path";
 import { cookies } from "next/headers";
 import { getCurrentSession } from "@/lib/auth";
 import { getDatabase } from "@/lib/database";
-import { errorResponse, hasValidCsrfToken, jsonResponse } from "@/lib/http";
+import { errorResponse, hasValidCsrfToken, jsonResponse, readRequestBodyWithLimit } from "@/lib/http";
 import {
   MAX_RESUME_BYTES,
   normalizeApplicationFields,
@@ -98,9 +98,27 @@ export async function POST(request: Request) {
     return errorResponse(415, "UNSUPPORTED_MEDIA_TYPE", "Submit the application using the provided form.");
   }
 
+  let boundedBody: Uint8Array | null;
+  try {
+    boundedBody = await readRequestBodyWithLimit(request, MAX_MULTIPART_BODY_BYTES);
+  } catch {
+    return errorResponse(400, "INVALID_MULTIPART", "We could not read this form. Please try again.");
+  }
+  if (boundedBody === null) {
+    return errorResponse(413, "FILE_TOO_LARGE", "The upload is too large. Choose a PDF up to 5 MB.");
+  }
+
+  const parsedHeaders = new Headers(request.headers);
+  parsedHeaders.delete("content-length");
+  const boundedRequest = new Request(request.url, {
+    method: "POST",
+    headers: parsedHeaders,
+    body: Buffer.from(boundedBody),
+  });
+
   let formData: FormData;
   try {
-    formData = await request.formData();
+    formData = await boundedRequest.formData();
   } catch {
     return errorResponse(400, "INVALID_MULTIPART", "We could not read this form. Please try again.");
   }
