@@ -30,7 +30,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .main-nav a:hover, .nav-sign-in:hover, .nav-dashboard:hover { color: #101e18; }
 .header-actions { gap: 18px; }
 .header-skeleton { width: 92px; height: 34px; border-radius: 8px; background: #e8ebe2; animation: pulse 1.2s infinite alternate; }
-.avatar-button { width: 39px; height: 39px; border: 0; border-radius: 50%; background: var(--lime); color: var(--green); font-weight: 800; }
+.avatar-button { width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--lime); color: var(--green); font-weight: 800; }
 .avatar-button:disabled { opacity: .65; cursor: progress; }
 @keyframes pulse { to { opacity: .55; } }
 .button { min-height: 48px; padding: 0 20px; display: inline-flex; align-items: center; justify-content: center; gap: 19px; border-radius: 12px; border: 1px solid transparent; font-size: 13px; font-weight: 700; transition: transform .18s, background .18s, border-color .18s; }
@@ -44,7 +44,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .button-glass:hover { background: rgba(255,255,255,.1); }
 .button-outline { background: transparent; color: var(--green); border-color: #cbd5ca; }
 .button-outline:hover { background: var(--white); }
-.button-small { min-height: 42px; padding: 0 16px; border-radius: 10px; gap: 10px; }
+.button-small { min-height: 44px; padding: 0 16px; border-radius: 10px; gap: 10px; }
 
 .hero-section { position: relative; overflow: hidden; background: #193b30; color: #f5f7ed; }
 .hero-section::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .15; background-image: radial-gradient(rgba(225,255,208,.6) .75px, transparent .75px); background-size: 20px 20px; mask-image: linear-gradient(90deg, black, transparent 70%); }
@@ -124,7 +124,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .search-box input { width: 100%; min-width: 0; height: 48px; border: 0; outline: 0; padding: 0 12px; color: var(--ink); background: transparent; font-size: 12px; }
 .search-box input:focus-visible { outline: 0; }
 .search-box input::placeholder { color: #8d9890; }
-.clear-search { width: 32px; height: 36px; border: 0; background: transparent; color: #718176; font-size: 21px; }
+.clear-search { width: 44px; height: 44px; border: 0; background: transparent; color: #718176; font-size: 21px; }
 .select-box select { width: 100%; height: 48px; border: 0; outline: 0; padding: 0 32px 0 14px; appearance: none; color: #526b5e; background: transparent; font-size: 11px; font-weight: 650; }
 .select-box::after { content: "⌄"; position: absolute; right: 14px; pointer-events: none; color: #667b6e; font-size: 16px; }
 .results-meta { display: flex; justify-content: space-between; gap: 16px; margin: 24px 0 13px; color: #89958b; font-size: 10px; }
@@ -148,7 +148,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .job-card-bottom { display: flex; align-items: end; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 22px; }
 .salary-label { color: #96a095; font-size: 8px; letter-spacing: 1px; font-weight: 800; }
 .salary-value { margin: 6px 0 0; color: #3e604b; font-size: 11px; font-weight: 750; }
-.job-arrow { width: 39px; height: 39px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 12px; color: var(--lime); background: var(--green); transition: background .18s, transform .18s; }
+.job-arrow { width: 44px; height: 44px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 12px; color: var(--lime); background: var(--green); transition: background .18s, transform .18s; }
 .job-arrow span { font-size: 19px; }
 .job-arrow:hover { transform: rotate(5deg); background: #2a5744; }
 .job-index { position: absolute; right: 18px; top: 85px; color: #eef0e7; font-size: 56px; font-weight: 800; letter-spacing: -4px; pointer-events: none; }
@@ -221,7 +221,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .field-error { color: #a7432e; }
 .password-wrap { position: relative; }
 .password-wrap input { padding-right: 80px !important; }
-.password-toggle { position: absolute; right: 9px; top: 50%; min-height: 34px; padding: 0 7px; transform: translateY(-50%); border: 0; border-radius: 6px; color: #536a5a; background: transparent; font-size: 10px; font-weight: 700; }
+.password-toggle { position: absolute; right: 9px; top: 50%; min-height: 44px; padding: 0 7px; transform: translateY(-50%); border: 0; border-radius: 6px; color: #536a5a; background: transparent; font-size: 10px; font-weight: 700; }
 .form-footer-note { margin: 19px 0 0; text-align: center; color: #879187; font-size: 10px; line-height: 1.7; }
 .auth-link { color: #477149; text-decoration: underline; text-underline-offset: 3px; font-weight: 700; }
 .form-notice { display: flex; gap: 10px; align-items: flex-start; padding: 12px 13px; border-radius: 9px; font-size: 11px; line-height: 1.6; }
@@ -249,7 +249,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .file-drop-content { min-width: 0; flex: 1; }
 .file-drop-content strong { display: block; overflow-wrap: anywhere; color: #355846; font-size: 11px; }
 .file-drop-content p { margin: 5px 0 0; color: #89968b; font-size: 10px; line-height: 1.5; }
-.file-select-label { display: inline-flex; justify-content: center; align-items: center; min-height: 40px; padding: 0 13px; flex: 0 0 auto; border: 1px solid #d5dfcf; border-radius: 8px; background: var(--white); color: #42644b; font-size: 10px; font-weight: 800; cursor: pointer; }
+.file-select-label { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; padding: 0 13px; flex: 0 0 auto; border: 1px solid #d5dfcf; border-radius: 8px; background: var(--white); color: #42644b; font-size: 10px; font-weight: 800; cursor: pointer; }
 .file-select-label:hover { border-color: #92ad79; background: #f4faed; }
 .file-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; clip-path: inset(50%); }
 .file-hidden:focus-visible + .file-select-label { outline: 3px solid #79a93b; outline-offset: 3px; }
@@ -280,7 +280,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .dashboard-count strong { font-size: 28px; letter-spacing: -1px; }
 .dashboard-count span { color: #7a897d; font-size: 10px; line-height: 1.4; }
 .dashboard-tabs { display: flex; gap: 8px; margin: 28px 0 16px; padding-bottom: 13px; border-bottom: 1px solid #e0e5db; }
-.dashboard-tab { min-height: 39px; padding: 0 13px; border: 1px solid transparent; border-radius: 9px; color: #7c8a80; background: transparent; font-size: 11px; font-weight: 700; }
+.dashboard-tab { min-height: 44px; padding: 0 13px; border: 1px solid transparent; border-radius: 9px; color: #7c8a80; background: transparent; font-size: 11px; font-weight: 700; }
 .dashboard-tab[aria-pressed="true"] { color: var(--green); border-color: #d5dfcf; background: #e9efdf; }
 .application-list { display: grid; gap: 12px; }
 .application-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 20px; padding: 20px; border: 1px solid #e0e5db; border-radius: 14px; background: rgba(255,255,250,.8); }
@@ -331,7 +331,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .main-nav { display: none; }
   .header-actions { margin-left: auto; gap: 12px; }
   .nav-sign-in, .nav-dashboard { font-size: 11px; }
-  .header-actions .button { min-height: 39px; padding: 0 12px; gap: 8px; font-size: 11px; }
+  .header-actions .button { min-height: 44px; padding: 0 12px; gap: 8px; font-size: 11px; }
   .hero-layout { display: flex; flex-direction: column; align-items: stretch; gap: 15px; min-height: auto; padding-top: 49px; padding-bottom: 25px; }
   .hero-copy { padding-bottom: 0; }
   .hero-copy h1 { font-size: clamp(45px,10vw,69px); letter-spacing: -3.3px; }
