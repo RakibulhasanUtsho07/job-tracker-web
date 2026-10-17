@@ -27,7 +27,7 @@ export async function GET(
 
   let bytes: Buffer;
   try {
-    bytes = await readFile(path.join(directory, storedName));
+    bytes = await readFile(/*turbopackIgnore: true*/ path.join(directory, storedName));
   } catch {
     return errorResponse(404, "RESUME_NOT_FOUND", "This resume is not available.");
   }
