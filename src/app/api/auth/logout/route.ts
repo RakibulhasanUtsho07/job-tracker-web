@@ -4,9 +4,6 @@ import { deleteSession, readSession } from "@/lib/database";
 import { errorResponse, hasValidCsrfToken } from "@/lib/http";
 import { SESSION_COOKIE } from "@/lib/auth";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 export async function POST(request: Request) {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
