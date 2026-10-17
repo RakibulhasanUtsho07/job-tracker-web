@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 type PortalUser = { id: string; name: string; email: string };
 
 export function SiteHeader() {
+  const router = useRouter();
   const [user, setUser] = useState<PortalUser | null>(null);
   const [csrfToken, setCsrfToken] = useState("");
   const [checking, setChecking] = useState(true);
