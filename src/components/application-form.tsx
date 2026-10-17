@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   MAX_RESUME_BYTES,
@@ -63,7 +64,14 @@ export function ApplicationForm({ role }: Props) {
       if (draft) {
         const parsed = JSON.parse(draft) as { values?: ApplicationFields; idempotencyKey?: string };
         if (parsed.values && typeof parsed.values === "object") {
-          setValues({ ...initialValues, ...parsed.values });
+          const restoredValues: ApplicationFields = {
+            fullName: typeof parsed.values.fullName === "string" ? parsed.values.fullName : "",
+            email: typeof parsed.values.email === "string" ? parsed.values.email : "",
+            linkedinUrl: typeof parsed.values.linkedinUrl === "string" ? parsed.values.linkedinUrl : "",
+            experienceLevel: typeof parsed.values.experienceLevel === "string" ? parsed.values.experienceLevel : "",
+            coverLetter: typeof parsed.values.coverLetter === "string" ? parsed.values.coverLetter : "",
+          };
+          queueMicrotask(() => { if (active) setValues(restoredValues); });
         }
         if (typeof parsed.idempotencyKey === "string" && parsed.idempotencyKey.length >= 8) {
           idempotencyKey.current = parsed.idempotencyKey;
@@ -357,7 +365,7 @@ export function ApplicationForm({ role }: Props) {
           <div className="field-group field-span-full">
             <label htmlFor="coverLetter">A note to the team <span className="field-hint">(optional, up to 2,000 characters)</span></label>
             <textarea id="coverLetter" name="coverLetter" rows={4} maxLength={2000} value={values.coverLetter} onChange={(event) => updateField("coverLetter", event.target.value)} placeholder="What interests you about this role?" aria-describedby="coverLetter-hint" />
-            <p className="field-hint" id="coverLetter-hint">{values.coverLetter.length}/2,000 characters. Keep it genuine; there's no perfect answer.</p>
+            <p className="field-hint" id="coverLetter-hint">{values.coverLetter.length}/2,000 characters. Keep it genuine; there&apos;s no perfect answer.</p>
           </div>
         </div>
 
@@ -373,11 +381,11 @@ export function ApplicationForm({ role }: Props) {
           <div className="dialog-card" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="session-dialog-heading" aria-describedby="session-dialog-description">
             <div className="dialog-icon" aria-hidden="true">⌁</div>
             <h2 id="session-dialog-heading">Your session expired.</h2>
-            <p id="session-dialog-description">Please sign in again to finish submitting. Your text answers and safe-retry key will be restored, but you'll need to choose the PDF again because browsers do not allow file inputs to be restored.</p>
+            <p id="session-dialog-description">Please sign in again to finish submitting. Your text answers and safe-retry key will be restored, but you&apos;ll need to choose the PDF again because browsers do not allow file inputs to be restored.</p>
             <div className="dialog-actions">
               <button className="button button-dark" type="button" onClick={() => {
                 persistDraftForReauthentication();
-                window.location.assign(`/sign-in?returnTo=${encodeURIComponent(`/apply/${role.id}`)}`);
+                router.push(`/sign-in?returnTo=${encodeURIComponent(`/apply/${role.id}`)}`);
               }}>Sign in again <span aria-hidden="true">↗</span></button>
               <button className="button button-outline" type="button" onClick={() => setSessionExpired(false)}>Keep editing</button>
             </div>
