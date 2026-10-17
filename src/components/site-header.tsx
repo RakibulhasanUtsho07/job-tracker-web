@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type PortalUser = { id: string; name: string; email: string };
@@ -36,7 +37,7 @@ export function SiteHeader() {
       if (response.ok) {
         setUser(null);
         setCsrfToken("");
-        window.location.assign("/");
+        router.replace("/");
       }
     } finally {
       setSigningOut(false);
@@ -51,8 +52,8 @@ export function SiteHeader() {
           <span className="brand-word">northstar<span>careers</span></span>
         </Link>
         <nav className="main-nav" aria-label="Main navigation">
-          <a href="/#opportunities">Find a role</a>
-          <a href="/#culture">Our culture</a>
+          <Link href="/#opportunities">Find a role</Link>
+          <Link href="/#culture">Our culture</Link>
         </nav>
         <div className="header-actions">
           {checking ? (
