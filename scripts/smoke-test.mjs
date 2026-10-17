@@ -6,7 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-const root = process.cwd();\nlet serverOutput = "";
+const root = process.cwd();
+let serverOutput = "";
 const tempDirectory = mkdtempSync(path.join(os.tmpdir(), "northstar-careers-smoke-"));
 const databasePath = path.join(tempDirectory, "careers.sqlite");
 const uploadPath = path.join(tempDirectory, "private-uploads");
