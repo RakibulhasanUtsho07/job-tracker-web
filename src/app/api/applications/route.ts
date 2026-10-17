@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { cookies } from "next/headers";
-import { getCurrentSession, SESSION_COOKIE } from "@/lib/auth";
+import { getCurrentSession } from "@/lib/auth";
 import { getDatabase } from "@/lib/database";
 import { errorResponse, hasValidCsrfToken, jsonResponse } from "@/lib/http";
 import {
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
     size: bytes.byteLength,
     header: bytes.subarray(0, 8),
   });
-  if (pdfCheck.code === "EMPTY_FILE") {
+  if (!pdfCheck.ok && pdfCheck.code === "EMPTY_FILE") {
     return errorResponse(422, "VALIDATION_ERROR", "Choose a non-empty PDF resume.", {
       fieldErrors: { resume: "Choose a non-empty PDF resume." },
     });
