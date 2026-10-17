@@ -74,7 +74,10 @@ export function CandidateDashboard() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const handle = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(handle);
+  }, [load]);
 
   const visibleApplications = useMemo(() => applications.filter((application) => {
     if (filter === "active") return application.status === "submitted" || application.status === "in_review";
