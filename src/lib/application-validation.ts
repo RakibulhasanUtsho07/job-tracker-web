@@ -32,7 +32,9 @@ export function validateApplicationFields(fields: ApplicationFields): Applicatio
   if (!EMAIL_PATTERN.test(fields.email) || fields.email.length > 254) {
     errors.email = "Enter a valid email address.";
   }
-  if (fields.linkedinUrl.length > 300) {\n    errors.linkedinUrl = "Keep your LinkedIn profile URL under 300 characters.";\n  } else if (fields.linkedinUrl.length > 0) {
+  if (fields.linkedinUrl.length > 300) {
+    errors.linkedinUrl = "Keep your LinkedIn profile URL under 300 characters.";
+  } else if (fields.linkedinUrl.length > 0) {
     try {
       const url = new URL(fields.linkedinUrl);
       if (url.protocol !== "https:" || url.hostname !== "www.linkedin.com" && url.hostname !== "linkedin.com") {
