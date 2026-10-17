@@ -4,6 +4,8 @@ import { SignInForm } from "@/components/sign-in-form";
 
 export const metadata: Metadata = { title: "Sign in" };
 
+export const instant = false;
+
 type Props = { searchParams: Promise<{ returnTo?: string | string[] }> };
 
 export default async function SignInPage({ searchParams }: Props) {
