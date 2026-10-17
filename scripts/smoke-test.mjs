@@ -89,7 +89,6 @@ async function main() {
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  let serverOutput = "";
   child.stdout.on("data", (chunk) => { serverOutput = (serverOutput + chunk.toString()).slice(-6000); });
   child.stderr.on("data", (chunk) => { serverOutput = (serverOutput + chunk.toString()).slice(-6000); });
   await waitForServer(baseUrl);
