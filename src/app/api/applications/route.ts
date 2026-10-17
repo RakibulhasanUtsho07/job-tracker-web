@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { cookies } from "next/headers";
 import { getCurrentSession } from "@/lib/auth";
 import { getDatabase } from "@/lib/database";
 import { errorResponse, hasValidCsrfToken, jsonResponse, readRequestBodyWithLimit } from "@/lib/http";
