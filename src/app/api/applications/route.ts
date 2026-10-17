@@ -14,9 +14,6 @@ import {
 } from "@/lib/application-validation";
 import { getRoleById } from "@/lib/roles";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 const MAX_MULTIPART_BODY_BYTES = MAX_RESUME_BYTES + 128 * 1024;
 
 function privateUploadDirectory(): string {
