@@ -40,7 +40,7 @@ export function SignInForm({ returnTo }: Props) {
 
   return (
     <form className="form-stack" onSubmit={handleSubmit} noValidate>
-      {error && <div className="form-notice form-notice-error" role="alert"><span aria-hidden="true">!</span><div>{error}</div></div>}
+      {error && <div className="form-notice form-notice-error" id="sign-in-error" role="alert"><span aria-hidden="true">!</span><div>{error}</div></div>}
       <div className="field-group">
         <label htmlFor="sign-in-email">Email address</label>
         <input id="sign-in-email" name="email" type="email" inputMode="email" autoComplete="email" required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" aria-invalid={Boolean(error)} aria-describedby={error ? "sign-in-error" : undefined} />
