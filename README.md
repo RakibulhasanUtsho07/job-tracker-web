@@ -97,4 +97,4 @@ For mobile, screen-reader, keyboard-only, timeout injection, and session-recover
 - develop: integration branch
 - rakibul-hasan-utsho: active implementation branch for this feature
 
-Changes are organized into small conventional commits and verified by GitHub Actions on push and pull request.
+Changes are organized into small conventional commits and verified by GitHub Actions on push and pull request. Dependabot checks npm packages and GitHub Actions weekly and groups routine patch/minor updates into reviewable pull requests.
