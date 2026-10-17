@@ -3,9 +3,6 @@ import { authenticateCredentials, createSession } from "@/lib/database";
 import { errorResponse, isAllowedOrigin } from "@/lib/http";
 import { SESSION_COOKIE, SESSION_COOKIE_MAX_AGE_SECONDS } from "@/lib/auth";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 export async function POST(request: Request) {
   if (!isAllowedOrigin(request)) {
     return errorResponse(403, "ORIGIN_REJECTED", "This sign-in request was not allowed.");
