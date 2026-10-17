@@ -36,6 +36,7 @@ function createSubmissionKey(): string {
 }
 
 export function ApplicationForm({ role }: Props) {
+  const router = useRouter();
   const [values, setValues] = useState<ApplicationFields>(initialValues);
   const [resume, setResume] = useState<File | null>(null);
   const [errors, setErrors] = useState<ApplicationFieldErrors>({});
