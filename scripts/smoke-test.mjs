@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
@@ -112,12 +113,12 @@ async function main() {
 
   const noCsrf = await api(`${baseUrl}/api/applications`, {
     method: "POST",
-    headers: { "Idempotency-Key": crypto.randomUUID() },
+    headers: { "Idempotency-Key": randomUUID() },
     body: formFor("web-developer", new Blob(["%PDF-1.7\nDemo"], { type: "application/pdf" }), "resume.pdf"),
   });
   assert.equal(noCsrf.status, 403, "mutations without CSRF protection should be rejected");
 
-  const idempotencyKey = crypto.randomUUID();
+  const idempotencyKey = randomUUID();
   const validForm = () => formFor("web-developer", new Blob(["%PDF-1.7\nFictional PDF bytes"], { type: "application/pdf" }), "candidate-resume.pdf");
   const firstResponse = await api(`${baseUrl}/api/applications`, {
     method: "POST",
@@ -139,7 +140,7 @@ async function main() {
 
   const duplicateResponse = await api(`${baseUrl}/api/applications`, {
     method: "POST",
-    headers: { "Idempotency-Key": crypto.randomUUID(), "X-CSRF-Token": csrfToken },
+    headers: { "Idempotency-Key": randomUUID(), "X-CSRF-Token": csrfToken },
     body: validForm(),
   });
   assert.equal(duplicateResponse.status, 409, "different-key duplicate application should be rejected");
@@ -159,7 +160,7 @@ async function main() {
 
   const fakePdfResponse = await api(`${baseUrl}/api/applications`, {
     method: "POST",
-    headers: { "Idempotency-Key": crypto.randomUUID(), "X-CSRF-Token": csrfToken },
+    headers: { "Idempotency-Key": randomUUID(), "X-CSRF-Token": csrfToken },
     body: formFor("product-designer", new Blob(["<html><script>alert(1)</script></html>"], { type: "application/pdf" }), "cv.pdf"),
   });
   assert.equal(fakePdfResponse.status, 415, "HTML renamed as a PDF must be rejected");
@@ -168,7 +169,7 @@ async function main() {
   const oversize = new Blob([new Uint8Array(5 * 1024 * 1024 + 1)], { type: "application/pdf" });
   const oversizedResponse = await api(`${baseUrl}/api/applications`, {
     method: "POST",
-    headers: { "Idempotency-Key": crypto.randomUUID(), "X-CSRF-Token": csrfToken },
+    headers: { "Idempotency-Key": randomUUID(), "X-CSRF-Token": csrfToken },
     body: formFor("backend-engineer", oversize, "too-large.pdf"),
   });
   assert.equal(oversizedResponse.status, 413, "resumes over 5 MiB must be rejected");
