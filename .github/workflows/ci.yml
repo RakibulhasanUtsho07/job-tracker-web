@@ -32,3 +32,5 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
+      - name: Production HTTP smoke test
+        run: npm run smoke
