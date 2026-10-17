@@ -90,7 +90,7 @@ export default function Home() {
         <div className="footer-inner page-shell">
           <Link className="brand brand-footer" href="/"><span className="brand-mark" aria-hidden="true">n<span>✳</span></span><span className="brand-word">northstar<span>careers</span></span></Link>
           <p>Thoughtful work. Clear next steps.</p>
-          <span>© {new Date().getFullYear()} Northstar Careers <i /> Fictional demo</span>
+          <span>© 2026 Northstar Careers <i /> Fictional demo</span>
         </div>
       </footer>
     </main>
