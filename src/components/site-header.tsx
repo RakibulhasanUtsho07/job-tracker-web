@@ -69,7 +69,7 @@ export function SiteHeader() {
           ) : (
             <>
               <Link className="nav-sign-in" href="/sign-in">Sign in</Link>
-              <Link className="button button-dark button-small" href="/#opportunities">Explore roles <span aria-hidden="true">↗</span></Link>
+              <Link className="button button-dark button-small" href="/sign-up">Create account <span aria-hidden="true">↗</span></Link>
             </>
           )}
         </div>

@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 type Props = { returnTo: string };
 
 export function SignInForm({ returnTo }: Props) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -32,7 +30,7 @@ export function SignInForm({ returnTo }: Props) {
         return;
       }
       // The destination is reduced to a same-origin path by the server page.
-      router.replace(returnTo);
+      window.location.assign(returnTo);
     } catch {
       setError("The sign-in request could not reach the server. Check your connection and retry.");
     } finally {
@@ -57,7 +55,7 @@ export function SignInForm({ returnTo }: Props) {
       <button className="button button-dark full-width form-submit" type="submit" aria-disabled={pending} aria-busy={pending}>
         {pending ? "Signing you in…" : "Sign in securely"} <span aria-hidden="true">↗</span>
       </button>
-      <p className="form-footer-note">This portal uses fictional data and a local demo account. Credentials are configured by the project owner.</p>
+      <p className="form-footer-note">New to Northstar? <Link className="auth-link" href="/sign-up">Create a candidate account</Link></p>
       <p className="form-footer-note">Just exploring? <Link className="auth-link" href="/#opportunities">Browse roles without signing in</Link></p>
     </form>
   );

@@ -8,7 +8,8 @@ All roles, candidate information, and salaries are fictional. The app uses no ex
 
 - Responsive landing page with searchable roles and work-style/team filters.
 - Six fictional job listings with role detail and application pages.
-- Candidate sign-in using an HttpOnly, SameSite=Lax cookie session.
+- Public candidate registration and sign-in using an HttpOnly, SameSite=Lax cookie session.
+- Server-side name/email/password validation, unique email enforcement, and salted scrypt password hashes (never plaintext passwords).
 - Database-backed sessions and a session-bound CSRF token for state-changing requests.
 - Accessible application form with linked inline errors, a focusable error summary, status announcements, a 20-second request timeout, an in-flight guard, retry support, and a focus-trapped session-expiry dialog.
 - Server-side validation for required fields, allowed experience levels, LinkedIn URLs, and PDF resumes up to 5 MiB.
@@ -50,7 +51,9 @@ The SQLite module's stability status varies across Node releases. Use a current 
 
 5. Open http://localhost:3000.
 
-The local example account is configured in .env.example:
+A new candidate can register at `/sign-up`; a successful registration creates the account in SQLite and signs the candidate in. The registered account can then submit applications and use the candidate dashboard. Email verification and password reset are not configured in this demo.
+
+For local QA, a demo account is also configured in .env.example:
 
 - Email: demo@careers.local
 - Password: DemoPass123!
@@ -59,8 +62,8 @@ These are fictional demo credentials only. Change them before sharing any enviro
 
 ## Storage and configuration
 
-- SQLite database: data/careers.sqlite by default.
-- Private resume directory: data/private-uploads/ by default.
+- SQLite database: `data/careers.sqlite` by default. It stores candidate profiles (name, normalized email, salted password hash and salt), sessions, applications, and retry/idempotency records.
+- Private resume directory: `data/private-uploads/` by default. Uploaded resume PDF bytes are stored as private files there; the database stores the generated storage filename and original filename.
 - Optional CAREERS_DB_PATH and CAREERS_UPLOAD_DIR environment variables can place those stores elsewhere. Keep both outside public/static hosting folders.
 - Local database files and uploads are ignored by Git.
 
@@ -76,7 +79,7 @@ Run these commands in order:
     npm run build
     npm run smoke
 
-The smoke test expects a production build to exist (run it after npm run build). It starts a local HTTP server with a fresh temporary database, runs sign-in, CSRF, upload, idempotency, duplicate prevention, private download, fake PDF rejection, file-size limit, and logout checks, then removes the temporary storage.
+The smoke test expects a production build to exist (run it after npm run build). It starts a local HTTP server with a fresh temporary database, checks registration, password-length and duplicate-email rejection, sign-in, CSRF, upload, idempotency, duplicate application prevention, private resume download, fake PDF rejection, file-size limit, and logout, then removes the temporary storage.
 
 For mobile, screen-reader, keyboard-only, timeout injection, and session-recovery scenarios, follow the application quality checklist at docs/quality-checklist.md.
 
@@ -89,7 +92,8 @@ For mobile, screen-reader, keyboard-only, timeout injection, and session-recover
 - The application transaction and SQLite unique constraint prevent a second application for the same account/role; user-scoped idempotency records replay the first response for retries.
 - Resume files are stored with generated UUID filenames and restricted filesystem permissions. Downloads are authorized by application owner and always returned as attachments.
 - The PDF check validates the extension and expected leading signature specified by the project. It is not a malware scanner or a full PDF parser; a production hiring system should add content-disarm/malware inspection and a retention/deletion policy before accepting real resumes.
-- The login is intentionally a single fictional demo identity, not a public registration flow. There is no password reset, email delivery, external identity provider, or admin status-management UI.
+- Public registration creates accounts immediately; no email verification, password reset, email delivery, external identity provider, account deletion UI, or admin status-management UI is configured.
+- Before accepting real public traffic, add durable server-side rate limiting/abuse controls, verify email ownership if required, configure backups and data-retention/deletion policies, and arrange malware/content inspection for uploaded resumes.
 
 ## Branching
 

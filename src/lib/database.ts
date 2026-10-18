@@ -127,6 +127,35 @@ export function authenticateCredentials(emailInput: string, password: string): P
   return { id: String(row.id), name: String(row.name), email: String(row.email) };
 }
 
+export function registerUser(nameInput: string, emailInput: string, password: string): PortalUser | null {
+  const name = nameInput.trim().replace(/\s+/g, " ");
+  const email = emailInput.trim().toLowerCase();
+  const db = getDatabase();
+  const id = randomUUID();
+  const salt = randomBytes(16).toString("hex");
+  const passwordHash = scryptSync(password, salt, 64).toString("hex");
+
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+    if (existing) {
+      db.exec("ROLLBACK");
+      return null;
+    }
+
+    db.prepare(
+      "INSERT INTO users (id, name, email, password_salt, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    ).run(id, name, email, salt, passwordHash, Date.now());
+    db.exec("COMMIT");
+    return { id, name, email };
+  } catch (error) {
+    try { db.exec("ROLLBACK"); } catch { /* No active transaction. */ }
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("UNIQUE constraint failed: users.email")) return null;
+    throw error;
+  }
+}
+
 export function createSession(userId: string): { token: string; csrfToken: string; expiresAt: number } {
   const token = randomBytes(32).toString("base64url");
   const csrfToken = randomBytes(24).toString("base64url");
