@@ -99,6 +99,32 @@ async function main() {
   const roles = await rolesResponse.json();
   assert.ok(Array.isArray(roles.roles) && roles.roles.length >= 6, "role catalogue should contain the demo roles");
 
+  const registrationEmail = "new-candidate-" + randomUUID() + "@careers.local";
+  const registrationResponse = await api(baseUrl + "/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Registered Candidate", email: registrationEmail, password: "LongEnoughPassword123!" }),
+  });
+  assert.equal(registrationResponse.status, 201, "a valid candidate should be able to register");
+  const registrationBody = await registrationResponse.json();
+  assert.equal(registrationBody.user.email, registrationEmail, "registration should normalize and return the new user's email");
+  assert.ok(registrationBody.csrfToken, "registration should start an authenticated session");
+  assert.match(registrationResponse.headers.get("set-cookie") ?? "", /^careers_session=/, "registration should set a session cookie");
+
+  const shortPasswordRegistration = await api(baseUrl + "/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Short Password", email: "short-password@careers.local", password: "tiny" }),
+  });
+  assert.equal(shortPasswordRegistration.status, 422, "weak-length passwords should be rejected");
+
+  const duplicateRegistration = await api(baseUrl + "/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Registered Candidate", email: registrationEmail, password: "LongEnoughPassword123!" }),
+  });
+  assert.equal(duplicateRegistration.status, 409, "duplicate email registrations should be rejected");
+
   const loginResponse = await api(`${baseUrl}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
