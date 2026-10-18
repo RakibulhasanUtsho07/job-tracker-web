@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
   const user = authenticateCredentials(email, password);
   if (!user) {
-    return errorResponse(401, "SIGN_IN_FAILED", "Those details did not match our demo account.");
+    return errorResponse(401, "SIGN_IN_FAILED", "Those email and password details did not match.");
   }
 
   const session = createSession(user.id);
