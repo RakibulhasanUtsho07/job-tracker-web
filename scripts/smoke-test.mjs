@@ -103,7 +103,7 @@ async function main() {
   const registrationResponse = await api(baseUrl + "/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "Registered Candidate", email: registrationEmail, password: "LongEnoughPassword123!" }),
+    body: JSON.stringify({ name: "Registered Candidate", email: registrationEmail.toUpperCase(), password: "LongEnoughPassword123!" }),
   });
   assert.equal(registrationResponse.status, 201, "a valid candidate should be able to register");
   const registrationBody = await registrationResponse.json();
@@ -213,7 +213,7 @@ async function main() {
   const afterLogout = await api(`${baseUrl}/api/applications`);
   assert.equal(afterLogout.status, 401, "a signed-out session cannot access applications");
 
-  console.log("Smoke checks passed: sign-in, CSRF, role catalogue, PDF upload, idempotent replay, duplicate guard, private download, fake PDF rejection, size cap, and logout.");
+  console.log("Smoke checks passed: registration, duplicate email rejection, sign-in, CSRF, role catalogue, PDF upload, idempotent replay, duplicate guard, private download, fake PDF rejection, size cap, and logout.");
 }
 
 try {
