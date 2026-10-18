@@ -128,7 +128,7 @@ export function authenticateCredentials(emailInput: string, password: string): P
 }
 
 export function registerUser(nameInput: string, emailInput: string, password: string): PortalUser | null {
-  const name = nameInput.trim().replace(/\\s+/g, " ");
+  const name = nameInput.trim().replace(/\s+/g, " ");
   const email = emailInput.trim().toLowerCase();
   const db = getDatabase();
   const id = randomUUID();
