@@ -79,7 +79,7 @@ Run these commands in order:
     npm run build
     npm run smoke
 
-The smoke test expects a production build to exist (run it after npm run build). It starts a local HTTP server with a fresh temporary database, runs sign-in, CSRF, upload, idempotency, duplicate prevention, private download, fake PDF rejection, file-size limit, and logout checks, then removes the temporary storage.
+The smoke test expects a production build to exist (run it after npm run build). It starts a local HTTP server with a fresh temporary database, checks registration, password-length and duplicate-email rejection, sign-in, CSRF, upload, idempotency, duplicate application prevention, private resume download, fake PDF rejection, file-size limit, and logout, then removes the temporary storage.
 
 For mobile, screen-reader, keyboard-only, timeout injection, and session-recovery scenarios, follow the application quality checklist at docs/quality-checklist.md.
 
