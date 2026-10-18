@@ -40,14 +40,14 @@ export async function POST(request: Request) {
   }
 
   const input = body as Record<string, unknown>;
-  const name = typeof input.name === "string" ? input.name.trim().replace(/\\s+/g, " ") : "";
+  const name = typeof input.name === "string" ? input.name.trim().replace(/\s+/g, " ") : "";
   const email = typeof input.email === "string" ? input.email.trim() : "";
   const password = typeof input.password === "string" ? input.password : "";
 
-  if (name.length < 2 || name.length > 80 || /[\\u0000-\\u001F\\u007F]/.test(name)) {
+  if (name.length < 2 || name.length > 80 || /[\u0000-\u001F\u007F]/.test(name)) {
     return errorResponse(422, "INVALID_NAME", "Enter a name between 2 and 80 characters.");
   }
-  if (email.length > 254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return errorResponse(422, "INVALID_EMAIL", "Enter a valid email address.");
   }
   if (password.length < 12 || password.length > 128) {
