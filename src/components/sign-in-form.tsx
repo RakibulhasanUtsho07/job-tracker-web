@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 type Props = { returnTo: string };
 
 export function SignInForm({ returnTo }: Props) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -32,7 +30,7 @@ export function SignInForm({ returnTo }: Props) {
         return;
       }
       // The destination is reduced to a same-origin path by the server page.
-      router.replace(returnTo);
+      window.location.assign(returnTo);
     } catch {
       setError("The sign-in request could not reach the server. Check your connection and retry.");
     } finally {
