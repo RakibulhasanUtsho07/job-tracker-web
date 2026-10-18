@@ -50,6 +50,15 @@ The following browser checks complement the automated smoke suite. Use fictional
 2. Submit it from an application form (or send it directly to the API during local QA).
 3. Confirm the server responds with HTTP 415, the error is associated with the resume field, and no file or application row is created for that attempt.
 
+## 7. Public registration and stored account details
+
+1. Open `/sign-up` from the global header and create an account using fictional test data and a password of at least 12 characters.
+2. Confirm a mismatched confirmation password is stopped before the request is sent, and the server rejects a shorter password.
+3. Confirm a successful registration signs the new candidate in and opens the dashboard after a full page navigation.
+4. Try registering with the same email using different letter casing; confirm the duplicate is rejected.
+5. Stop and restart the local app, sign in with the new credentials, and confirm the account remains available in `data/careers.sqlite`.
+6. Do not use real candidate information during QA. Email verification and password reset are not implemented.
+
 ## Reduced-motion and keyboard pass
 
 Enable the operating-system reduced-motion preference, then navigate from the skip link through the header, role search controls, sign-in, application form, and dashboard using only the keyboard. Focus must remain visible. The session-expiry dialog must keep Tab and Shift+Tab focus inside it until the user continues or dismisses it.
