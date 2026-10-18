@@ -32,7 +32,7 @@ export default async function SignInPage({ searchParams }: Props) {
           <section className="auth-card" aria-labelledby="sign-in-heading">
             <p className="page-kicker"><span className="eyebrow-dot" /> CANDIDATE PORTAL</p>
             <h2 id="sign-in-heading">Welcome back.</h2>
-            <p className="auth-card-intro">Use the local demo credentials configured for this project.</p>
+            <p className="auth-card-intro">Enter the email address and password linked to your candidate account.</p>
             <SignInForm returnTo={returnTo} />
             <div className="auth-lock-note"><span aria-hidden="true">▣</span> Session cookies are HttpOnly and same-site.</div>
           </section>
