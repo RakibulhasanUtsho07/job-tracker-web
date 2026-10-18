@@ -111,6 +111,14 @@ async function main() {
   assert.ok(registrationBody.csrfToken, "registration should start an authenticated session");
   assert.match(registrationResponse.headers.get("set-cookie") ?? "", /^careers_session=/, "registration should set a session cookie");
 
+  const registeredLogin = await api(baseUrl + "/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: registrationEmail, password: "LongEnoughPassword123!" }),
+  });
+  assert.equal(registeredLogin.status, 200, "a newly registered candidate should be able to sign in");
+  assert.equal((await registeredLogin.json()).user.email, registrationEmail, "registered credentials should resolve the normalized account");
+
   const shortPasswordRegistration = await api(baseUrl + "/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
