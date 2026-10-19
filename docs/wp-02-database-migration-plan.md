@@ -1,9 +1,11 @@
 # WP-02 — HireFlow Database Model & Migration Plan
 
-**Status:** Design plan only — implementation has not started.  
-**Base:** `main`  
-**Feature branch:** `feat/hireflow-database`  
+**Status:** Historical SQLite-era plan — superseded as the HireFlow business-record target by [`docs/postgres-schema-foundation.md`](postgres-schema-foundation.md) and [`db/migrations/001_hireflow_core.sql`](../db/migrations/001_hireflow_core.sql).  
+**Current target:** PostgreSQL.  
+**Active implementation branch:** `feat/hireflow-postgres-foundation`  
 **Related issue:** [#10 — Define database model and safe SQLite migrations](https://github.com/RakibulhasanUtsho07/job-tracker-web/issues/10)
+
+> This file records the earlier SQLite proposal for historical context only. Do not implement the HireFlow business schema from this plan. The running application still uses SQLite; PostgreSQL becomes the runtime source of truth only after a separately tested application/auth cutover. Preserve any existing demo database and private uploads until that work is complete.
 
 ## 1. Current repository findings
 
