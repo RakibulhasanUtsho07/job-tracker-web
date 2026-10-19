@@ -38,3 +38,28 @@ VALUES
    '["Customer support", "Communication", "Problem solving"]'::jsonb,
    'PUBLISHED', NULL)
 ON CONFLICT ("id") DO NOTHING;
+
+-- Versioned, explainable matching vocabulary for the six starter roles.
+INSERT INTO "JobSkill" ("id","jobId","nameNormalized","displayName","kind")
+VALUES
+  ('skill-web-typescript','web-developer','typescript','TypeScript','REQUIRED'),
+  ('skill-web-react','web-developer','react','React','REQUIRED'),
+  ('skill-web-accessibility','web-developer','accessibility','Accessibility','PREFERRED'),
+  ('skill-web-design-systems','web-developer','design systems','Design systems','PREFERRED'),
+  ('skill-design-ux-research','product-designer','ux research','UX research','REQUIRED'),
+  ('skill-design-prototyping','product-designer','prototyping','Prototyping','REQUIRED'),
+  ('skill-design-accessibility','product-designer','accessibility','Accessibility','PREFERRED'),
+  ('skill-backend-node','backend-engineer','node.js','Node.js','REQUIRED'),
+  ('skill-backend-api','backend-engineer','api design','API design','REQUIRED'),
+  ('skill-backend-postgres','backend-engineer','postgresql','PostgreSQL','PREFERRED'),
+  ('skill-qa-test-strategy','qa-engineer','test strategy','Test strategy','REQUIRED'),
+  ('skill-qa-automation','qa-engineer','test automation','Test automation','REQUIRED'),
+  ('skill-qa-ci','qa-engineer','continuous integration','Continuous integration','PREFERRED'),
+  ('skill-data-sql','data-analyst-intern','sql','SQL','REQUIRED'),
+  ('skill-data-storytelling','data-analyst-intern','data storytelling','Data storytelling','REQUIRED'),
+  ('skill-data-python','data-analyst-intern','python','Python','PREFERRED'),
+  ('skill-cs-communication','customer-success','communication','Communication','REQUIRED'),
+  ('skill-cs-support','customer-success','customer support','Customer support','REQUIRED'),
+  ('skill-cs-problem-solving','customer-success','problem solving','Problem solving','PREFERRED')
+ON CONFLICT ("jobId","nameNormalized","kind") DO NOTHING;
+;

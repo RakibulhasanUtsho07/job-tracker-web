@@ -1,9 +1,9 @@
 -- Executed by scripts/verify-postgres-migrations.sh against a disposable database.
 
-INSERT INTO "User" ("id", "name", "email", "role")
+INSERT INTO "User" ("id", "name", "email", "passwordSalt", "passwordHash", "role")
 VALUES
-  ('ci-recruiter', 'CI Recruiter', 'ci-recruiter@example.invalid', 'RECRUITER'),
-  ('ci-candidate', 'CI Candidate', 'ci-candidate@example.invalid', 'CANDIDATE')
+  ('ci-recruiter', 'CI Recruiter', 'ci-recruiter@example.invalid', 'ci-salt', 'ci-hash', 'RECRUITER'),
+  ('ci-candidate', 'CI Candidate', 'ci-candidate@example.invalid', 'ci-salt', 'ci-hash', 'CANDIDATE')
 ON CONFLICT ("id") DO NOTHING;
 
 -- Public, legacy job IDs must all survive two seed passes.

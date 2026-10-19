@@ -6,7 +6,7 @@ concurrency:
 
 on:
   push:
-    branches: [main, develop, rakibul-hasan-utsho]
+    branches: [main, develop, rakibul-hasan-utsho, 'feat/**']
   pull_request:
     branches: [main, develop]
 
@@ -17,7 +17,26 @@ jobs:
   verify:
     name: Verify application
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hireflow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hireflow_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/hireflow_test
+      RECRUITER_EMAIL: ci-recruiter@careers.local
+      RECRUITER_PASSWORD: CIRecruiterPassword123!
+      RECRUITER_NAME: CI Demo Recruiter
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -28,6 +47,11 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Prepare isolated PostgreSQL database
+        run: |
+          npm run db:migrate
+          npm run db:seed
+          npm run db:bootstrap-recruiter
       - name: Lint
         run: npm run lint
       - name: Type-check

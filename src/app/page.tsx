@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { JobDirectory } from "@/components/job-directory";
-import { JOB_ROLES } from "@/lib/roles";
+import { getPublicJobs } from "@/lib/jobs";
 
-export default function Home() {
+
+export default async function Home() {
+  const roles = await getPublicJobs();
   return (
     <main id="main-content">
       <section className="hero-section">
@@ -61,7 +63,7 @@ export default function Home() {
         <div><strong>01</strong><span>Clear place to track it all</span></div>
       </div>
 
-      <JobDirectory roles={JOB_ROLES} />
+      <JobDirectory roles={roles} />
 
       <section className="culture-section" id="culture">
         <div className="culture-card page-shell">

@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 export function SignUpForm() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,8 +40,8 @@ export function SignUpForm() {
         setError(typeof payload.message === "string" ? payload.message : "We could not create your account. Please try again.");
         return;
       }
-      // Reload the app so the shared header reads the new server session.
-      window.location.assign("/dashboard");
+      // Navigate with the App Router after the session cookie is issued.
+      router.push("/dashboard");
     } catch {
       setError("The registration request could not reach the server. Check your connection and retry.");
     } finally {

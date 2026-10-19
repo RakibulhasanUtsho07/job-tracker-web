@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authenticateCredentials, createSession } from "@/lib/database";
+import { authenticateCredentials, createSession } from "@/lib/pg-auth";
 import { errorResponse, isAllowedOrigin } from "@/lib/http";
 import { SESSION_COOKIE, SESSION_COOKIE_MAX_AGE_SECONDS } from "@/lib/auth";
 
@@ -30,12 +30,12 @@ export async function POST(request: Request) {
     return errorResponse(422, "INVALID_CREDENTIALS", "Enter a valid email address and password.");
   }
 
-  const user = authenticateCredentials(email, password);
+  const user = await authenticateCredentials(email, password);
   if (!user) {
     return errorResponse(401, "SIGN_IN_FAILED", "Those email and password details did not match.");
   }
 
-  const session = createSession(user.id);
+  const session = await createSession(user.id);
   const response = NextResponse.json(
     { user, csrfToken: session.csrfToken },
     { headers: { "Cache-Control": "no-store" } },

@@ -1,6 +1,7 @@
-import { JOB_ROLES } from "@/lib/roles";
 import { jsonResponse } from "@/lib/http";
+import { getPublicJobs } from "@/lib/jobs";
+
 
 export async function GET() {
-  return jsonResponse({ roles: JOB_ROLES });
+  return jsonResponse({ roles: await getPublicJobs() });
 }

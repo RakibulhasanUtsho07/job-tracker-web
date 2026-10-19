@@ -5,15 +5,14 @@ import { createServer } from "node:net";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+
+try { process.loadEnvFile?.(".env.local"); } catch (error) { if (error?.code !== "ENOENT") throw error; }
 
 const root = process.cwd();
 let serverOutput = "";
 const tempDirectory = mkdtempSync(path.join(os.tmpdir(), "northstar-careers-smoke-"));
-const databasePath = path.join(tempDirectory, "careers.sqlite");
 const uploadPath = path.join(tempDirectory, "private-uploads");
-const demoEmail = "smoke-test@careers.local";
-const demoPassword = "SmokeTestPassword123!";
+let demoEmail = "smoke-test-" + randomUUID() + "@careers.local";
 let child;
 let cookie = "";
 let csrfToken = "";
@@ -81,11 +80,10 @@ async function main() {
       ...process.env,
       NODE_ENV: "production",
       NEXT_TELEMETRY_DISABLED: "1",
-      CAREERS_DB_PATH: databasePath,
       CAREERS_UPLOAD_DIR: uploadPath,
-      DEMO_EMAIL: demoEmail,
-      DEMO_PASSWORD: demoPassword,
-      DEMO_NAME: "Smoke Test Candidate",
+      DATABASE_URL: process.env.DATABASE_URL,
+      RECRUITER_EMAIL: process.env.RECRUITER_EMAIL,
+      RECRUITER_PASSWORD: process.env.RECRUITER_PASSWORD,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -117,7 +115,13 @@ async function main() {
     body: JSON.stringify({ email: registrationEmail, password: "LongEnoughPassword123!" }),
   });
   assert.equal(registeredLogin.status, 200, "a newly registered candidate should be able to sign in");
-  assert.equal((await registeredLogin.json()).user.email, registrationEmail, "registered credentials should resolve the normalized account");
+  const registeredLoginBody = await registeredLogin.json();
+  assert.equal(registeredLoginBody.user.email, registrationEmail, "registered credentials should resolve the normalized account");
+  demoEmail = registrationEmail;
+  csrfToken = registeredLoginBody.csrfToken;
+  cookie = (registeredLogin.headers.get("set-cookie") ?? "").split(";")[0];
+  assert.ok(csrfToken, "sign-in should issue a CSRF token");
+  assert.match(cookie, /^careers_session=/, "sign-in should set a session cookie");
 
   const shortPasswordRegistration = await api(baseUrl + "/api/auth/register", {
     method: "POST",
@@ -132,18 +136,6 @@ async function main() {
     body: JSON.stringify({ name: "Registered Candidate", email: registrationEmail, password: "LongEnoughPassword123!" }),
   });
   assert.equal(duplicateRegistration.status, 409, "duplicate email registrations should be rejected");
-
-  const loginResponse = await api(`${baseUrl}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: demoEmail, password: demoPassword }),
-  });
-  assert.equal(loginResponse.status, 200, "demo credentials should sign in");
-  const loginBody = await loginResponse.json();
-  assert.ok(loginBody.csrfToken, "sign-in should issue a CSRF token");
-  csrfToken = loginBody.csrfToken;
-  cookie = (loginResponse.headers.get("set-cookie") ?? "").split(";")[0];
-  assert.match(cookie, /^careers_session=/, "session cookie should be set");
 
   const noCsrf = await api(`${baseUrl}/api/applications`, {
     method: "POST",
@@ -192,6 +184,91 @@ async function main() {
   assert.doesNotMatch(resumeResponse.headers.get("content-security-policy") ?? "", /unsafe-inline/);
   assert.match((await resumeResponse.text()).slice(0, 5), /^%PDF-/);
 
+  // Candidate accounts must never receive recruiter privileges.
+  const candidateForbidden = await api(baseUrl + "/api/recruiter/jobs");
+  assert.equal(candidateForbidden.status, 403, "candidate role must be denied recruiter endpoints");
+
+  const historyBeforeReview = await api(baseUrl + "/api/applications/" + created.id + "/history");
+  assert.equal(historyBeforeReview.status, 200, "candidate should view their own status history");
+  assert.equal((await historyBeforeReview.json()).history[0].toStatus, "APPLIED");
+
+  const recruiterEmail = process.env.RECRUITER_EMAIL;
+  const recruiterPassword = process.env.RECRUITER_PASSWORD;
+  assert.ok(recruiterEmail && recruiterPassword, "smoke test requires trusted recruiter setup");
+  const recruiterLogin = await api(baseUrl + "/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: recruiterEmail, password: recruiterPassword }),
+  });
+  assert.equal(recruiterLogin.status, 200, "trusted recruiter should sign in");
+  const recruiterLoginBody = await recruiterLogin.json();
+  cookie = (recruiterLogin.headers.get("set-cookie") ?? "").split(";")[0];
+  csrfToken = recruiterLoginBody.csrfToken;
+  assert.ok(cookie && csrfToken, "recruiter session and CSRF token should be set");
+
+  const recruiterJobs = await api(baseUrl + "/api/recruiter/jobs");
+  assert.equal(recruiterJobs.status, 200, "recruiter should load authorized jobs");
+  assert.ok((await recruiterJobs.json()).jobs.some((job) => job.id === "web-developer"), "bootstrap should assign legacy jobs");
+
+  const draftResponse = await api(baseUrl + "/api/recruiter/jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+    body: JSON.stringify({ title: "Smoke Test Backend Role", department: "Engineering",
+      description: "A fictional role used to verify recruiter job lifecycle transitions.",
+      location: "Dhaka", workMode: "REMOTE", employmentType: "FULL_TIME",
+      requiredSkills: ["TypeScript", "PostgreSQL"], preferredSkills: ["Testing"] }),
+  });
+  assert.equal(draftResponse.status, 201, "recruiter should create a draft job");
+  const draft = (await draftResponse.json()).job;
+  assert.equal(draft.status, "DRAFT");
+  const publicDraftCheck = await api(baseUrl + "/api/roles");
+  assert.ok(!(await publicDraftCheck.json()).roles.some((job) => job.id === draft.id), "draft jobs must stay private");
+
+  const publishResponse = await api(baseUrl + "/api/recruiter/jobs/" + draft.id, {
+    method: "PATCH", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+    body: JSON.stringify({ action: "publish" }),
+  });
+  assert.equal(publishResponse.status, 200, "valid job draft should publish");
+  const publishedRoles = await api(baseUrl + "/api/roles");
+  assert.ok((await publishedRoles.json()).roles.some((job) => job.id === draft.id), "published job should be public");
+
+  const closeResponse = await api(baseUrl + "/api/recruiter/jobs/" + draft.id, {
+    method: "PATCH", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+    body: JSON.stringify({ action: "close" }),
+  });
+  assert.equal(closeResponse.status, 200, "published job should close");
+  const afterCloseRoles = await api(baseUrl + "/api/roles");
+  assert.ok(!(await afterCloseRoles.json()).roles.some((job) => job.id === draft.id), "closed job should be hidden publicly");
+
+  const recruiterApplications = await api(baseUrl + "/api/recruiter/applications");
+  assert.equal(recruiterApplications.status, 200, "recruiter should load application queue");
+  assert.ok((await recruiterApplications.json()).applications.some((item) => item.id === created.id), "queue should contain candidate application");
+  const recruiterResume = await api(baseUrl + "/api/recruiter/applications/" + created.id + "/resume");
+  assert.equal(recruiterResume.status, 200, "owning recruiter should download resume");
+
+  const transition = await api(baseUrl + "/api/recruiter/applications/" + created.id + "/status", {
+    method: "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+    body: JSON.stringify({ status: "SCREENING", note: "Reviewed by the automated smoke test." }),
+  });
+  assert.equal(transition.status, 200, "valid status transition should succeed");
+  const invalidTransition = await api(baseUrl + "/api/recruiter/applications/" + created.id + "/status", {
+    method: "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+    body: JSON.stringify({ status: "APPLIED" }),
+  });
+  assert.equal(invalidTransition.status, 409, "invalid reverse transition should be rejected");
+
+  const candidateLogin = await api(baseUrl + "/api/auth/login", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: registrationEmail, password: "LongEnoughPassword123!" }),
+  });
+  assert.equal(candidateLogin.status, 200, "candidate should sign in after recruiter review");
+  const candidateLoginBody = await candidateLogin.json();
+  cookie = (candidateLogin.headers.get("set-cookie") ?? "").split(";")[0];
+  csrfToken = candidateLoginBody.csrfToken;
+  const updatedHistory = await api(baseUrl + "/api/applications/" + created.id + "/history");
+  assert.equal(updatedHistory.status, 200);
+  assert.ok((await updatedHistory.json()).history.some((event) => event.toStatus === "SCREENING"), "candidate timeline should include status update without private notes");
+
   const fakePdfResponse = await api(`${baseUrl}/api/applications`, {
     method: "POST",
     headers: { "Idempotency-Key": randomUUID(), "X-CSRF-Token": csrfToken },
@@ -208,10 +285,6 @@ async function main() {
   });
   assert.equal(oversizedResponse.status, 413, "resumes over 5 MiB must be rejected");
 
-  const sqlite = new DatabaseSync(databasePath);
-  const rowCount = sqlite.prepare("SELECT COUNT(*) AS count FROM applications").get();
-  assert.equal(Number(rowCount.count), 1, "the database unique constraint should preserve one application per role");
-  sqlite.close();
 
   const logoutResponse = await api(`${baseUrl}/api/auth/logout`, {
     method: "POST",
@@ -221,7 +294,7 @@ async function main() {
   const afterLogout = await api(`${baseUrl}/api/applications`);
   assert.equal(afterLogout.status, 401, "a signed-out session cannot access applications");
 
-  console.log("Smoke checks passed: registration, duplicate email rejection, sign-in, CSRF, role catalogue, PDF upload, idempotent replay, duplicate guard, private download, fake PDF rejection, size cap, and logout.");
+  console.log("Smoke checks passed: candidate auth, role denial, job publication/closure, applications, idempotency, private resumes, recruiter review transitions, status history, PDF rejection, size cap and logout.");
 }
 
 try {

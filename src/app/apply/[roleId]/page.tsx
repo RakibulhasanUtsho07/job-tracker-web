@@ -2,23 +2,20 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ApplicationForm } from "@/components/application-form";
-import { getRoleById, JOB_ROLES } from "@/lib/roles";
+import { getPublicJobById } from "@/lib/jobs";
 
 type Props = { params: Promise<{ roleId: string }> };
 
-export function generateStaticParams() {
-  return JOB_ROLES.map((role) => ({ roleId: role.id }));
-}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { roleId } = await params;
-  const role = getRoleById(roleId);
+  const role = await getPublicJobById(roleId);
   return { title: role ? `Apply — ${role.title}` : "Role not found" };
 }
 
 export default async function ApplyPage({ params }: Props) {
   const { roleId } = await params;
-  const role = getRoleById(roleId);
+  const role = await getPublicJobById(roleId);
   if (!role) notFound();
 
   return (
