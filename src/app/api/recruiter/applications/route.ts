@@ -19,7 +19,7 @@ export async function GET() {
     fullName:String(row.fullName), email:String(row.email), linkedinUrl:String(row.linkedinUrl || ""),
     experienceLevel:String(row.experienceLevel), coverLetter:String(row.coverLetter || ""),
     resumeAvailable:Boolean(row.resumeName), resumeName:row.resumeName ? String(row.resumeName) : null,
-    status:statusLabel(row.status), statusCode:String(row.status), submittedAt:new Date(row.submittedAt as string|Date).getTime(),
+    status:statusLabel(row.status), statusCode:String(row.status), submittedAt:(row.submittedAt instanceof Date ? row.submittedAt : new Date(String(row.submittedAt))).getTime(),
     matchScore:row.overallScore===null||row.overallScore===undefined?null:Number(row.overallScore),
     matchStatus:row.analysisStatus===null||row.analysisStatus===undefined?null:String(row.analysisStatus),
     matchedSkills:Array.isArray(row.matchedSkills)?row.matchedSkills:[],

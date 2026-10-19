@@ -9,7 +9,7 @@ function mapJob(row:DbJob):JobRole {
   const department=row.department||"General";
   const lower=department.toLowerCase();
   const teamColor:JobRole["teamColor"]=lower.includes("design")?"lavender":lower.includes("data")?"mint":lower.includes("customer")?"peach":"mint";
-  const postedAt=new Date(row.createdAt).getTime();
+  const postedAt=(row.createdAt instanceof Date ? row.createdAt : new Date(String(row.createdAt))).getTime();
   const days=Number.isFinite(postedAt)?Math.max(0,Math.floor((Date.now()-postedAt)/86400000)):0;
   const postedLabel=days<1?"Posted today":days===1?"Posted yesterday":days<7?"Posted "+days+" days ago":"Recently posted";
   return {id:String(row.id),title:String(row.title),department,location:String(row.location||"Location flexible"),

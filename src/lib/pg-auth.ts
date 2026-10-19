@@ -63,7 +63,7 @@ export async function readSession(token: string | undefined): Promise<SessionCon
     [tokenHash]);
   const row = rows[0];
   if (!row) return null;
-  const expiresAt = new Date(row.expiresAt as string | Date).getTime();
+  const expiresAt = row.expiresAt instanceof Date ? row.expiresAt.getTime() : new Date(String(row.expiresAt)).getTime();
   if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
     await getPostgres().unsafe('DELETE FROM "Session" WHERE "tokenHash"=$1',[tokenHash]);
     return null;

@@ -14,6 +14,6 @@ export async function GET(_request:Request,context:{params:Promise<{id:string}>}
     fromStatus:row.fromStatus===null?null:String(row.fromStatus),
     toStatus:String(row.toStatus),
     source:row.eventSource==="MIGRATION_BASELINE"?"Imported history":"Status update",
-    occurredAt:new Date(row.createdAt as string|Date).toISOString()
+    occurredAt:(row.createdAt instanceof Date ? row.createdAt : new Date(String(row.createdAt))).toISOString()
   }))});
 }

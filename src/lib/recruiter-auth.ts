@@ -24,7 +24,7 @@ export function readSkillList(value: unknown): string[] | null {
   const skills: string[] = [];
   const seen = new Set<string>();
   for (const item of value) {
-    const label = cleanText(item, 120);
+    const label = cleanText(item, 100);
     if (!label) return null;
     const key = label.toLowerCase();
     if (!seen.has(key)) { seen.add(key); skills.push(label); }
