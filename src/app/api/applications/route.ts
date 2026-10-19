@@ -1,92 +1,91 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { getCurrentSession } from "@/lib/auth";
-import { getDatabase } from "@/lib/database";
+import { getPostgres } from "@/lib/postgres";
 import { errorResponse, hasValidCsrfToken, jsonResponse, readRequestBodyWithLimit } from "@/lib/http";
-import {
-  MAX_RESUME_BYTES,
-  normalizeApplicationFields,
-  sanitizeOriginalFilename,
-  validateApplicationFields,
-  validatePdfResume,
-} from "@/lib/application-validation";
-import { getRoleById } from "@/lib/roles";
+import { MAX_RESUME_BYTES, normalizeApplicationFields, sanitizeOriginalFilename, validateApplicationFields, validatePdfResume } from "@/lib/application-validation";
+import { getPublicJobById } from "@/lib/jobs";
 
 const MAX_MULTIPART_BODY_BYTES = MAX_RESUME_BYTES + 128 * 1024;
-
 function privateUploadDirectory(): string {
   return process.env.CAREERS_UPLOAD_DIR || path.join(process.cwd(), "data", "private-uploads");
 }
-
-function replayResponse(row: Record<string, unknown>): Response {
-  return jsonResponse(JSON.parse(String(row.response_json)), Number(row.response_status));
+function apiStatus(status: unknown): string {
+  switch (String(status)) {
+    case "APPLIED": return "submitted";
+    case "SCREENING": return "in_review";
+    case "SHORTLISTED": return "shortlisted";
+    case "INTERVIEW": return "interview";
+    case "OFFERED": return "offered";
+    case "HIRED": return "hired";
+    case "REJECTED": return "rejected";
+    case "WITHDRAWN": return "withdrawn";
+    default: return "submitted";
+  }
 }
-
-function saveIdempotentResponse(
-  db: ReturnType<typeof getDatabase>,
-  userId: string,
-  key: string,
-  status: number,
-  body: Record<string, unknown>,
-): void {
-  db.prepare(
-    "INSERT INTO idempotency_records (user_id, idempotency_key, response_status, response_json, created_at) VALUES (?, ?, ?, ?, ?)",
-  ).run(userId, key, status, JSON.stringify(body), Date.now());
+function objectJson(value: unknown): Record<string, unknown> {
+  if (typeof value === "string") {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    } catch { return {}; }
+  }
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error
+    && (error as { code?: unknown }).code === "23505";
+}
+async function saveIdempotency(userId: string, key: string, status: number, body: Record<string, unknown>): Promise<void> {
+  await getPostgres().unsafe(
+    'INSERT INTO "IdempotencyRecord" ("userId", "idempotencyKey", "responseStatus", "responseJson") VALUES ($1, $2, $3, $4::jsonb) ON CONFLICT ("userId", "idempotencyKey") DO NOTHING',
+    [userId, key, status, JSON.stringify(body)],
+  );
 }
 
 export async function GET() {
   const session = await getCurrentSession();
   if (!session) return errorResponse(401, "SESSION_EXPIRED", "Please sign in to view your applications.");
-
-  const rows = getDatabase().prepare(`
-    SELECT id, role_id, full_name, email, linkedin_url, experience_level, cover_letter,
-           resume_original_name, status, created_at
-    FROM applications
-    WHERE user_id = ?
-    ORDER BY created_at DESC
-    LIMIT 100
-  `).all(session.user.id);
-
+  const rows = await getPostgres()`
+    SELECT a."id", a."jobId" AS "roleId", j."title" AS "roleTitle",
+           COALESCE(j."department", 'Careers') AS "department",
+           a."fullName", a."email", a."linkedinUrl", a."experienceLevel",
+           a."coverLetter", r."originalFileName" AS "resumeName",
+           a."status", a."submittedAt"
+    FROM "Application" a
+    INNER JOIN "Job" j ON j."id" = a."jobId"
+    LEFT JOIN "ResumeAsset" r ON r."applicationId" = a."id"
+    WHERE a."candidateId" = ${session.user.id
+    ORDER BY a."submittedAt" DESC LIMIT 100
+  `;
   return jsonResponse({
-    applications: rows.map((row) => {
-      const role = getRoleById(String(row.role_id));
-      return {
-        id: String(row.id),
-        roleId: String(row.role_id),
-        roleTitle: role?.title ?? "Role no longer listed",
-        department: role?.department ?? "Careers",
-        fullName: String(row.full_name),
-        email: String(row.email),
-        linkedinUrl: String(row.linkedin_url),
-        experienceLevel: String(row.experience_level),
-        coverLetter: String(row.cover_letter),
-        resumeName: String(row.resume_original_name),
-        resumeAvailable: true,
-        status: String(row.status),
-        submittedAt: Number(row.created_at),
-      };
-    }),
+    applications: rows.map((row) => ({
+      id: String(row.id), roleId: String(row.roleId), roleTitle: String(row.roleTitle),
+      department: String(row.department), fullName: String(row.fullName), email: String(row.email),
+      linkedinUrl: String(row.linkedinUrl || ""), experienceLevel: String(row.experienceLevel),
+      coverLetter: String(row.coverLetter || ""), resumeName: String(row.resumeName || "Resume unavailable"),
+      resumeAvailable: Boolean(row.resumeName), status: apiStatus(row.status),
+      submittedAt: new Date(row.submittedAt as string | Date).getTime(),
+    })),
   });
 }
 
 export async function POST(request: Request) {
   const session = await getCurrentSession();
   if (!session) return errorResponse(401, "SESSION_EXPIRED", "Your session expired. Sign in again to continue.");
-  if (!hasValidCsrfToken(request, session.csrfToken)) {
-    return errorResponse(403, "CSRF_REJECTED", "Refresh the form and try again.");
-  }
+  if (!hasValidCsrfToken(request, session.csrfToken)) return errorResponse(403, "CSRF_REJECTED", "Refresh the form and try again.");
 
   const key = request.headers.get("idempotency-key")?.trim() ?? "";
   if (!/^[A-Za-z0-9._:-]{8,128}$/.test(key)) {
     return errorResponse(400, "IDEMPOTENCY_KEY_REQUIRED", "Refresh the form to create a safe submission key.");
   }
-
-  const db = getDatabase();
-  const prior = db.prepare(
-    "SELECT response_status, response_json FROM idempotency_records WHERE user_id = ? AND idempotency_key = ?",
-  ).get(session.user.id, key);
-  if (prior) return replayResponse(prior);
+  const sql = getPostgres();
+  const prior = await sql.unsafe(
+    'SELECT "responseStatus", "responseJson" FROM "IdempotencyRecord" WHERE "userId"=$1 AND "idempotencyKey"=$2',
+    [session.user.id, key],
+  );
+  if (prior[0]) return jsonResponse(objectJson(prior[0].responseJson), Number(prior[0].responseStatus));
 
   const contentLengthHeader = request.headers.get("content-length");
   const contentLength = contentLengthHeader ? Number(contentLengthHeader) : 0;
@@ -98,171 +97,116 @@ export async function POST(request: Request) {
   }
 
   let boundedBody: Uint8Array | null;
-  try {
-    boundedBody = await readRequestBodyWithLimit(request, MAX_MULTIPART_BODY_BYTES);
-  } catch {
-    return errorResponse(400, "INVALID_MULTIPART", "We could not read this form. Please try again.");
-  }
-  if (boundedBody === null) {
-    return errorResponse(413, "FILE_TOO_LARGE", "The upload is too large. Choose a PDF up to 5 MB.");
-  }
+  try { boundedBody = await readRequestBodyWithLimit(request, MAX_MULTIPART_BODY_BYTES); }
+  catch { return errorResponse(400, "INVALID_MULTIPART", "We could not read this form. Please try again."); }
+  if (boundedBody === null) return errorResponse(413, "FILE_TOO_LARGE", "The upload is too large. Choose a PDF up to 5 MB.");
 
   const parsedHeaders = new Headers(request.headers);
   parsedHeaders.delete("content-length");
-  const boundedRequest = new Request(request.url, {
-    method: "POST",
-    headers: parsedHeaders,
-    body: Buffer.from(boundedBody),
-  });
-
   let formData: FormData;
   try {
-    formData = await boundedRequest.formData();
-  } catch {
-    return errorResponse(400, "INVALID_MULTIPART", "We could not read this form. Please try again.");
-  }
+    formData = await new Request(request.url, { method: "POST", headers: parsedHeaders, body: Buffer.from(boundedBody) }).formData();
+  } catch { return errorResponse(400, "INVALID_MULTIPART", "We could not read this form. Please try again."); }
 
   const roleId = String(formData.get("roleId") ?? "").trim();
-  const role = getRoleById(roleId);
-  if (!role) return errorResponse(404, "ROLE_NOT_FOUND", "This role is no longer available.");
+  const role = await getPublicJobById(roleId);
+  if (!role) return errorResponse(404, "ROLE_NOT_FOUND", "This role is not open for applications.");
 
   const fields = normalizeApplicationFields({
-    fullName: formData.get("fullName"),
-    email: formData.get("email"),
-    linkedinUrl: formData.get("linkedinUrl"),
-    experienceLevel: formData.get("experienceLevel"),
+    fullName: formData.get("fullName"), email: formData.get("email"),
+    linkedinUrl: formData.get("linkedinUrl"), experienceLevel: formData.get("experienceLevel"),
     coverLetter: formData.get("coverLetter"),
   });
   const fieldErrors = validateApplicationFields(fields);
   const resumeValues = formData.getAll("resume");
-
-  if (resumeValues.length !== 1 || typeof resumeValues[0] === "string") {
-    fieldErrors.resume = "Choose one PDF resume to continue.";
-  }
+  if (resumeValues.length !== 1 || typeof resumeValues[0] === "string") fieldErrors.resume = "Choose one PDF resume to continue.";
   if (Object.keys(fieldErrors).length > 0) {
     return errorResponse(422, "VALIDATION_ERROR", "Check the highlighted fields and try again.", { fieldErrors });
   }
 
   const resume = resumeValues[0] as File;
   const bytes = Buffer.from(await resume.arrayBuffer());
-  if (bytes.byteLength > MAX_RESUME_BYTES) {
-    return errorResponse(413, "FILE_TOO_LARGE", "The upload is too large. Choose a PDF up to 5 MB.");
-  }
-  const pdfCheck = validatePdfResume({
-    filename: resume.name,
-    size: bytes.byteLength,
-    header: bytes.subarray(0, 8),
-  });
+  if (bytes.byteLength > MAX_RESUME_BYTES) return errorResponse(413, "FILE_TOO_LARGE", "The upload is too large. Choose a PDF up to 5 MB.");
+  const pdfCheck = validatePdfResume({ filename: resume.name, size: bytes.byteLength, header: bytes.subarray(0, 8) });
   if (!pdfCheck.ok && pdfCheck.code === "EMPTY_FILE") {
-    return errorResponse(422, "VALIDATION_ERROR", "Choose a non-empty PDF resume.", {
-      fieldErrors: { resume: "Choose a non-empty PDF resume." },
-    });
+    return errorResponse(422, "VALIDATION_ERROR", "Choose a non-empty PDF resume.", { fieldErrors: { resume: "Choose a non-empty PDF resume." } });
   }
-  if (!pdfCheck.ok) {
-    return errorResponse(415, "INVALID_PDF", "That file is not a valid PDF. Choose a real PDF resume.");
-  }
+  if (!pdfCheck.ok) return errorResponse(415, "INVALID_PDF", "That file is not a valid PDF. Choose a real PDF resume.");
 
   const originalName = sanitizeOriginalFilename(resume.name);
   const applicationId = randomUUID();
-  const storedName = `${randomUUID()}.pdf`;
+  const resumeId = randomUUID();
+  const storedName = randomUUID() + ".pdf";
   const uploadDirectory = privateUploadDirectory();
   const storedPath = path.join(uploadDirectory, storedName);
   let fileWasWritten = false;
-  let transactionStarted = false;
 
   try {
     mkdirSync(uploadDirectory, { recursive: true, mode: 0o700 });
-    db.exec("BEGIN IMMEDIATE");
-    transactionStarted = true;
+    const outcome = await sql.begin(async (tx) => {
+      // Serialize retries with the same user/key, including the case where the
+      // idempotency row does not exist yet.
+      await tx`SELECT pg_advisory_xact_lock(hashtext(${session.user.id), hashtext(${key))`;
+      const replay = await tx.unsafe(
+        'SELECT "responseStatus", "responseJson" FROM "IdempotencyRecord" WHERE "userId"=$1 AND "idempotencyKey"=$2',
+        [session.user.id, key],
+      );
+      if (replay[0]) return { status: Number(replay[0].responseStatus), body: objectJson(replay[0].responseJson) };
 
-    // Repeat the lookup inside the write transaction to make concurrent retries safe.
-    const saved = db.prepare(
-      "SELECT response_status, response_json FROM idempotency_records WHERE user_id = ? AND idempotency_key = ?",
-    ).get(session.user.id, key);
-    if (saved) {
-      db.exec("ROLLBACK");
-      transactionStarted = false;
-      return replayResponse(saved);
-    }
+      const eligible = await tx`
+        SELECT "id" FROM "Job" WHERE "id"=${roleId AND "status"='PUBLISHED'
+          AND ("closingAt" IS NULL OR "closingAt">CURRENT_TIMESTAMP) FOR SHARE
+      `;
+      if (!eligible[0]) return { status: 404, body: { code: "ROLE_NOT_FOUND", message: "This role is not open for applications." } };
 
-    const existing = db.prepare(
-      "SELECT id FROM applications WHERE user_id = ? AND role_id = ?",
-    ).get(session.user.id, roleId);
-
-    if (existing) {
-      const body = {
-        code: "ALREADY_APPLIED",
-        message: "You already applied for this role.",
-        applicationId: String(existing.id),
-        existingApplicationUrl: "/dashboard",
-      };
-      saveIdempotentResponse(db, session.user.id, key, 409, body);
-      db.exec("COMMIT");
-      transactionStarted = false;
-      return jsonResponse(body, 409);
-    }
-
-    db.prepare(`
-      INSERT INTO applications
-        (id, user_id, role_id, full_name, email, linkedin_url, experience_level,
-         cover_letter, resume_storage_name, resume_original_name, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?)
-    `).run(
-      applicationId,
-      session.user.id,
-      roleId,
-      fields.fullName,
-      fields.email,
-      fields.linkedinUrl,
-      fields.experienceLevel,
-      fields.coverLetter,
-      storedName,
-      originalName,
-      Date.now(),
-    );
-
-    // The file is private and is never written under public/ or served as inline content.
-    writeFileSync(storedPath, bytes, { flag: "wx", mode: 0o600 });
-    fileWasWritten = true;
-
-    const body = {
-      id: applicationId,
-      roleId,
-      roleTitle: role.title,
-      status: "submitted",
-      submittedAt: Date.now(),
-    };
-    saveIdempotentResponse(db, session.user.id, key, 201, body);
-    db.exec("COMMIT");
-    transactionStarted = false;
-    return jsonResponse(body, 201);
-  } catch (error) {
-    if (transactionStarted) {
-      try { db.exec("ROLLBACK"); } catch { /* Transaction may already have rolled back. */ }
-    }
-    if (fileWasWritten) {
-      try { unlinkSync(storedPath); } catch { /* Keep the original database error. */ }
-    }
-
-    const message = error instanceof Error ? error.message : "";
-    if (message.includes("UNIQUE constraint failed: applications.user_id, applications.role_id")) {
-      const existing = db.prepare("SELECT id FROM applications WHERE user_id = ? AND role_id = ?").get(session.user.id, roleId);
-      const body = {
-        code: "ALREADY_APPLIED",
-        message: "You already applied for this role.",
-        applicationId: String(existing?.id ?? ""),
-        existingApplicationUrl: "/dashboard",
-      };
-      try {
-        db.exec("BEGIN IMMEDIATE");
-        saveIdempotentResponse(db, session.user.id, key, 409, body);
-        db.exec("COMMIT");
-      } catch {
-        try { db.exec("ROLLBACK"); } catch { /* No active transaction. */ }
+      const existing = await tx`
+        SELECT "id" FROM "Application" WHERE "candidateId"=${session.user.id AND "jobId"=${roleId LIMIT 1
+      `;
+      if (existing[0]) {
+        const body = { code: "ALREADY_APPLIED", message: "You already applied for this role.", applicationId: String(existing[0].id), existingApplicationUrl: "/dashboard" };
+        await tx`
+          INSERT INTO "IdempotencyRecord" ("userId","idempotencyKey","responseStatus","responseJson")
+          VALUES (${session.user.id,${key,409,${JSON.stringify(body)`::jsonb) ON CONFLICT DO NOTHING
+        `;
+        return { status: 409, body };
       }
-      return jsonResponse(body, 409);
-    }
 
+      const now = new Date();
+      await tx`
+        INSERT INTO "Application"
+          ("id","candidateId","jobId","fullName","email","linkedinUrl","experienceLevel","coverLetter","status","submittedAt","updatedAt")
+        VALUES (${applicationId,${session.user.id,${roleId,${fields.fullName,${fields.email,${fields.linkedinUrl,${fields.experienceLevel,${fields.coverLetter,'APPLIED',${now,${now)
+      `;
+      writeFileSync(storedPath, bytes, { flag: "wx", mode: 0o600 });
+      fileWasWritten = true;
+      await tx`
+        INSERT INTO "ResumeAsset" ("id","applicationId","storageKey","originalFileName","mimeType","sizeBytes","checksum")
+        VALUES (${resumeId,${applicationId,${storedName,${originalName,'application/pdf',${bytes.byteLength,${createHash("sha256").update(bytes).digest("hex"))
+      `;
+      await tx`
+        INSERT INTO "ApplicationEvent" ("id","applicationId","actorId","fromStatus","toStatus","eventSource")
+        VALUES (${randomUUID(),${applicationId,${session.user.id,NULL,'APPLIED','USER_ACTION')
+      `;
+      const body = { id: applicationId, roleId, roleTitle: role.title, status: "submitted", submittedAt: now.getTime() };
+      await tx`
+        INSERT INTO "IdempotencyRecord" ("userId","idempotencyKey","responseStatus","responseJson")
+        VALUES (${session.user.id,${key,201,${JSON.stringify(body)`::jsonb)
+      `;
+      return { status: 201, body };
+    });
+    return jsonResponse(outcome.body, outcome.status);
+  } catch (error) {
+    if (fileWasWritten) { try { unlinkSync(storedPath); } catch { /* Keep the database error. */ } }
+    if (isUniqueViolation(error)) {
+      const existing = await sql`
+        SELECT "id" FROM "Application" WHERE "candidateId"=${session.user.id AND "jobId"=${roleId LIMIT 1
+      `;
+      if (existing[0]) {
+        const body = { code: "ALREADY_APPLIED", message: "You already applied for this role.", applicationId: String(existing[0].id), existingApplicationUrl: "/dashboard" };
+        try { await saveIdempotency(session.user.id, key, 409, body); } catch { /* A concurrent request may have stored a response. */ }
+        return jsonResponse(body, 409);
+      }
+    }
     console.error("Application submission failed.", error);
     return errorResponse(500, "SUBMISSION_FAILED", "We could not save your application. Retrying is safe.");
   }
