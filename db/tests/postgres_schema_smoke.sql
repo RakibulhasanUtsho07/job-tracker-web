@@ -38,6 +38,17 @@ BEGIN
   IF (SELECT "role" FROM "User" WHERE "id" = 'ci-candidate') <> 'CANDIDATE' THEN
     RAISE EXCEPTION 'Candidate role default/constraint is not preserved';
   END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'IdempotencyRecord' AND column_name = 'requestHash'
+  ) THEN
+    RAISE EXCEPTION 'Idempotency payload binding migration was not applied';
+  END IF;
+
+  IF to_regclass('"AuthRateLimit"') IS NULL THEN
+    RAISE EXCEPTION 'Persistent login rate-limit table was not created';
+  END IF;
 END
 $$;
 

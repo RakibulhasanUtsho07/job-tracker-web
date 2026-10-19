@@ -14,6 +14,10 @@ PSQL=(psql "$DATABASE_URL" --no-psqlrc --set ON_ERROR_STOP=1)
 "${PSQL[@]}" --file db/migrations/001_hireflow_core.sql
 "${PSQL[@]}" --file db/migrations/002_application_idempotency.sql
 "${PSQL[@]}" --file db/migrations/002_application_idempotency.sql
+"${PSQL[@]}" --file db/migrations/003_idempotency_payload_binding.sql
+"${PSQL[@]}" --file db/migrations/003_idempotency_payload_binding.sql
+"${PSQL[@]}" --file db/migrations/004_login_rate_limit.sql
+"${PSQL[@]}" --file db/migrations/004_login_rate_limit.sql
 "${PSQL[@]}" --file db/seeds/legacy_careers_jobs.sql
 "${PSQL[@]}" --file db/seeds/legacy_careers_jobs.sql
 "${PSQL[@]}" --file db/tests/postgres_schema_smoke.sql
