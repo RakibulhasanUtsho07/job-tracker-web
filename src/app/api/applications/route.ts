@@ -26,7 +26,7 @@ function objectJson(value: unknown): Record<string,unknown> {
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as {code?:unknown}).code === "23505";
 }
-async function saveIdempotency(userId:string,key:string,status:number,body:Record<string,unknown>):Promise<void> {
+async function saveIdempotency(userId:string,key:string,status:number,body:Record<string,string|number|boolean|null>):Promise<void> {
   const sql = getPostgres();
   await sql.unsafe('INSERT INTO "IdempotencyRecord" ("userId","idempotencyKey","responseStatus","responseJson") VALUES ($1,$2,$3,$4::jsonb) ON CONFLICT ("userId","idempotencyKey") DO NOTHING',[userId,key,status,sql.json(body)]);
 }
