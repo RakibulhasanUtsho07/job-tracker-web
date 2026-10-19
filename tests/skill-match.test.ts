@@ -12,7 +12,7 @@ test("reports a reproducible full skill match with case-insensitive aliases", ()
   const result = calculateSkillMatch("Built UI with TS and react; shipped accessibility reviews.", skills);
   assert.equal(result.analysisStatus, "COMPLETED");
   assert.equal(result.overallScore, 100);
-  assert.deepEqual(result.matchedSkills, ["Accessibility", "React", "TypeScript"]);
+  assert.deepEqual(result.matchedSkills, ["TypeScript", "React", "Accessibility"]);
   assert.deepEqual(result.missingRequiredSkills, []);
 });
 

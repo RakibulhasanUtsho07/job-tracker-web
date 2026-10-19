@@ -1,4 +1,7 @@
 import postgres from "postgres";
+
+try { process.loadEnvFile?.(".env.local"); } catch (error) { if (error?.code !== "ENOENT") throw error; }
+
 import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 
 const connectionString = process.env.DATABASE_URL?.trim();

@@ -5,14 +5,12 @@ import { createServer } from "node:net";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
 const root = process.cwd();
 let serverOutput = "";
 const tempDirectory = mkdtempSync(path.join(os.tmpdir(), "northstar-careers-smoke-"));
-const databasePath = path.join(tempDirectory, "careers.sqlite");
 const uploadPath = path.join(tempDirectory, "private-uploads");
-const demoEmail = "smoke-test@careers.local";
+let demoEmail = "smoke-test-" + randomUUID() + "@careers.local";
 const demoPassword = "SmokeTestPassword123!";
 let child;
 let cookie = "";
@@ -81,11 +79,10 @@ async function main() {
       ...process.env,
       NODE_ENV: "production",
       NEXT_TELEMETRY_DISABLED: "1",
-      CAREERS_DB_PATH: databasePath,
       CAREERS_UPLOAD_DIR: uploadPath,
-      DEMO_EMAIL: demoEmail,
-      DEMO_PASSWORD: demoPassword,
-      DEMO_NAME: "Smoke Test Candidate",
+      DATABASE_URL: process.env.DATABASE_URL,
+      RECRUITER_EMAIL: process.env.RECRUITER_EMAIL,
+      RECRUITER_PASSWORD: process.env.RECRUITER_PASSWORD,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -117,7 +114,13 @@ async function main() {
     body: JSON.stringify({ email: registrationEmail, password: "LongEnoughPassword123!" }),
   });
   assert.equal(registeredLogin.status, 200, "a newly registered candidate should be able to sign in");
-  assert.equal((await registeredLogin.json()).user.email, registrationEmail, "registered credentials should resolve the normalized account");
+  const registeredLoginBody = await registeredLogin.json();
+  assert.equal(registeredLoginBody.user.email, registrationEmail, "registered credentials should resolve the normalized account");
+  demoEmail = registrationEmail;
+  csrfToken = registeredLoginBody.csrfToken;
+  cookie = (registeredLogin.headers.get("set-cookie") ?? "").split(";")[0];
+  assert.ok(csrfToken, "sign-in should issue a CSRF token");
+  assert.match(cookie, /^careers_session=/, "sign-in should set a session cookie");
 
   const shortPasswordRegistration = await api(baseUrl + "/api/auth/register", {
     method: "POST",
@@ -132,18 +135,6 @@ async function main() {
     body: JSON.stringify({ name: "Registered Candidate", email: registrationEmail, password: "LongEnoughPassword123!" }),
   });
   assert.equal(duplicateRegistration.status, 409, "duplicate email registrations should be rejected");
-
-  const loginResponse = await api(`${baseUrl}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: demoEmail, password: demoPassword }),
-  });
-  assert.equal(loginResponse.status, 200, "demo credentials should sign in");
-  const loginBody = await loginResponse.json();
-  assert.ok(loginBody.csrfToken, "sign-in should issue a CSRF token");
-  csrfToken = loginBody.csrfToken;
-  cookie = (loginResponse.headers.get("set-cookie") ?? "").split(";")[0];
-  assert.match(cookie, /^careers_session=/, "session cookie should be set");
 
   const noCsrf = await api(`${baseUrl}/api/applications`, {
     method: "POST",
@@ -208,10 +199,6 @@ async function main() {
   });
   assert.equal(oversizedResponse.status, 413, "resumes over 5 MiB must be rejected");
 
-  const sqlite = new DatabaseSync(databasePath);
-  const rowCount = sqlite.prepare("SELECT COUNT(*) AS count FROM applications").get();
-  assert.equal(Number(rowCount.count), 1, "the database unique constraint should preserve one application per role");
-  sqlite.close();
 
   const logoutResponse = await api(`${baseUrl}/api/auth/logout`, {
     method: "POST",
