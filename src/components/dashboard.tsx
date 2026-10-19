@@ -84,9 +84,9 @@ export function CandidateDashboard() {
   }, [load]);
 
   const visibleApplications = useMemo(() => applications.filter((application) => {
-    if (filter === "active") return application.status === "submitted" || application.status === "in_review";
+    if (filter === "active") return ["submitted", "in_review", "shortlisted", "interview", "offered"].includes(application.status);
     if (filter === "shortlisted") return application.status === "shortlisted";
-    if (filter === "closed") return application.status === "rejected";
+    if (filter === "closed") return ["rejected", "hired", "withdrawn"].includes(application.status);
     return true;
   }), [applications, filter]);
 

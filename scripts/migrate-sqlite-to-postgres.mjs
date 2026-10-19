@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import postgres from "postgres";
 import { createHash, randomUUID } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, unlinkSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 try { process.loadEnvFile?.(".env.local"); } catch (error) { if (error?.code !== "ENOENT") throw error; }
@@ -16,7 +16,6 @@ if(!existsSync(sourceDatabase)){console.error("Legacy SQLite database not found 
 const sqlite=new DatabaseSync(sourceDatabase,{readOnly:true});
 const sql=postgres(connectionString,{max:1,prepare:false,connect_timeout:10,...(process.env.DATABASE_SSL==="require"?{ssl:"require"}:{})});
 const counts={users:0,sessions:0,applications:0,resumes:0,history:0,idempotency:0,missingResumeFiles:0,alreadyPresent:0};
-const importedFiles=[];
 function tableExists(name){return Boolean(sqlite.prepare("SELECT 1 AS present FROM sqlite_master WHERE type='table' AND name=?").get(name));}
 function dateFromEpoch(value){
   const n=Number(value),date=new Date(Number.isFinite(n)?n:Date.now());
@@ -108,7 +107,6 @@ try{
         }
         if(sourcePath!==path.resolve(destination)&&!existsSync(destination)){
           copyFileSync(sourceFile,destination);
-          importedFiles.push(destination);
         }
         if(!existsSync(destination))throw new Error("Resume copy failed for "+oldName+".");
         await sql.unsafe('INSERT INTO "ResumeAsset" ("id","applicationId","storageKey","originalFileName","mimeType","sizeBytes","checksum") VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT ("applicationId") DO NOTHING',
@@ -137,8 +135,7 @@ try{
   console.log(JSON.stringify(counts,null,2));
   if(counts.missingResumeFiles>0)console.warn("Review missingResumeFiles above; no application records were dropped.");
 }catch(error){
-  for(const file of importedFiles){try{unlinkSync(file);}catch{/* keep the original failure */}}
-  console.error("SQLite import stopped safely: "+(error instanceof Error?error.message:String(error)));
+  console.error("SQLite import stopped; source data was preserved. Completed PostgreSQL rows and copied files are intentionally retained so the idempotent import can be resumed after resolving the reported conflict: "+(error instanceof Error?error.message:String(error)));
   process.exitCode=1;
 }finally{
   sqlite.close();
