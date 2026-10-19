@@ -1,6 +1,6 @@
 # Application workflow and accessibility checks
 
-The CI smoke suite exercises the real production HTTP server against an isolated PostgreSQL database, sign-in cookie, CSRF checks, role catalogue, real text-bearing PDF submission and SkillMatch extraction, same-key replay, duplicate-role conflict, role separation, private download headers, fake-PDF rejection, the 5 MiB limit, and sign-out. It creates only fictional test data.
+The CI smoke suite exercises the real production HTTP server against an isolated PostgreSQL database, sign-in cookie, CSRF checks, role catalogue, real text-bearing PDF submission and SkillMatch extraction, same-key replay versus changed-payload key reuse, duplicate-role conflict, role separation, login body-size limits and failed-login rate limiting, private download headers, fake-PDF rejection and the 5 MiB limit. Recruiter job publication/closure is checked against the live homepage without rebuilding. It creates only fictional test data.
 
 The following browser checks complement the automated smoke suite. Use fictional data only and run against a fresh local database.
 

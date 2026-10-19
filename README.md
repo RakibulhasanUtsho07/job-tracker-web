@@ -58,4 +58,5 @@ npm run smoke covers candidate registration/sign-in, candidate denial for recrui
 - Job/application mutations validate the session-bound CSRF token. Candidate and recruiter queries scope data by ownership.
 - Resume filenames are generated server-side; only validated UUID-based .pdf keys are read back. Downloads use attachment, no-store, nosniff and restrictive CSP headers.
 - PostgreSQL constraints, unique keys and transaction boundaries protect important data invariants. Application events and MatchAnalysis records are append-only.
-- Password-reset/email verification, production rate limiting, malware scanning, production-grade object storage and a human-reviewed privacy/retention policy remain deployment follow-ups. SkillMatch must never make employment decisions by itself.
+- Login requests are capped at 16 KiB and repeated failed sign-ins are rate-limited in PostgreSQL (10 failures per client IP within a 15-minute window). Production deployments must supply trustworthy client IP headers through a configured reverse proxy; broader application/API abuse controls remain a deployment follow-up.
+- Password-reset/email verification, malware scanning, production-grade object storage and a human-reviewed privacy/retention policy remain deployment follow-ups. SkillMatch must never make employment decisions by itself.
