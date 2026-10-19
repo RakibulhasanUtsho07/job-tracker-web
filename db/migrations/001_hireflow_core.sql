@@ -39,7 +39,7 @@ ALTER TABLE "User"
 
 -- The identity provider should already normalize email on signup; canonicalize
 -- existing rows safely before enforcing case/whitespace-insensitive uniqueness.
-DO $
+DO $$
 BEGIN
   IF EXISTS (
     SELECT 1
@@ -51,7 +51,7 @@ BEGIN
       'Cannot normalize user emails: multiple existing accounts share the same trimmed lowercase email';
   END IF;
 END
-$;
+$$;
 
 UPDATE "User"
 SET "email" = LOWER(BTRIM("email"))
@@ -60,7 +60,7 @@ WHERE "email" <> LOWER(BTRIM("email"));
 CREATE UNIQUE INDEX IF NOT EXISTS "User_email_normalized_unique_idx"
   ON "User" (LOWER(BTRIM("email")));
 
-DO $
+DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
