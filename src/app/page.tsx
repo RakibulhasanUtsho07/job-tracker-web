@@ -2,7 +2,6 @@ import Link from "next/link";
 import { JobDirectory } from "@/components/job-directory";
 import { getPublicJobs } from "@/lib/jobs";
 
-export const instant = false;
 
 export default async function Home() {
   const roles = await getPublicJobs();

@@ -6,7 +6,6 @@ import { getPublicJobById } from "@/lib/jobs";
 
 type Props = { params: Promise<{ roleId: string }> };
 
-export const instant = false;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { roleId } = await params;
