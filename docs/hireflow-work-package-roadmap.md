@@ -1,7 +1,7 @@
 # HireFlow Work Package Roadmap
 
 **Repository:** https://github.com/RakibulhasanUtsho07/job-tracker-web  
-**Planning branch:** feat/hireflow-database  
+**Planning branch:** `main`; **active schema branch:** `feat/hireflow-postgres-foundation`  
 **Assessment deadline in source email:** 19 October 2026  
 **Approach:** Small, independently reviewable work packages. Do not skip baseline checks or overwrite local work.
 
@@ -13,7 +13,7 @@
 |---|---|---|
 | WP-00 | Repository audit | Done from GitHub main branch |
 | WP-01 | Local dependency/install + baseline checks | Passed locally per candidate's reported output |
-| WP-02 | Database design and safe SQLite migrations | Design documented; implementation not yet done |
+| WP-02 | PostgreSQL schema and migration foundation | Schema/legacy seed/CI verifier added on feature branch; runtime cutover and CI verification still pending |
 | WP-03 | Recruiter role and server-side authorization | Planned |
 | WP-04 | Persistent job CRUD and public job eligibility | Planned |
 | WP-05 | Recruiter review queue, status transitions, status history | Planned |
@@ -37,7 +37,9 @@
 ## WP-02 — Database foundation
 
 **Work item:** [Issue #10](https://github.com/RakibulhasanUtsho07/job-tracker-web/issues/10)  
-**Design:** [Database migration plan](wp-02-database-migration-plan.md)
+**Current schema:** [PostgreSQL schema foundation](postgres-schema-foundation.md)  
+**Migration:** [`db/migrations/001_hireflow_core.sql`](../db/migrations/001_hireflow_core.sql)  
+**Note:** `wp-02-database-migration-plan.md` is the historical SQLite proposal and is superseded for HireFlow business records.
 
 Files likely involved (verify actual local tree first):
 - src/lib/database.ts: schema initialization/migration/versioning
