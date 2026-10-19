@@ -22,7 +22,7 @@ try {
   if (!current) {
     const existing = await sql.unsafe('SELECT "id", "email", "role" FROM "User" WHERE lower(btrim("email")) = $1 LIMIT 1', [email]);
     if (!existing[0]) throw new Error("Could not create or locate the configured recruiter account.");
-    const updated = await sql.unsafe('UPDATE "User" SET "role" = CASE WHEN "role" = $1 THEN $1 ELSE $2 END WHERE "id" = $3 RETURNING "id", "email", "role"', ["ADMIN", "RECRUITER", existing[0].id]);
+    const updated = await sql.unsafe('UPDATE "User" SET "name"=$1,"email"=$2,"passwordSalt"=$3,"passwordHash"=$4,"role"=CASE WHEN "role"=$5 THEN $5 ELSE $6 END WHERE "id"=$7 RETURNING "id","email","role"', [name || "Demo Recruiter", email, salt, hash, "ADMIN", "RECRUITER", existing[0].id]);
     current = updated[0];
   }
   await sql.unsafe('UPDATE "Job" SET "recruiterId" = $1 WHERE "recruiterId" IS NULL AND "id" IN ($2, $3, $4, $5, $6, $7)', [current.id, "web-developer", "product-designer", "backend-engineer", "qa-engineer", "data-analyst-intern", "customer-success"]);

@@ -6,6 +6,8 @@ import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+try { process.loadEnvFile?.(".env.local"); } catch (error) { if (error?.code !== "ENOENT") throw error; }
+
 const root = process.cwd();
 let serverOutput = "";
 const tempDirectory = mkdtempSync(path.join(os.tmpdir(), "northstar-careers-smoke-"));
