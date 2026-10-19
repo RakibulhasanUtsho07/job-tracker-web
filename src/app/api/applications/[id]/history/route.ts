@@ -2,7 +2,6 @@ import { getCurrentSession } from "@/lib/auth";
 import { getPostgres } from "@/lib/postgres";
 import { errorResponse, jsonResponse } from "@/lib/http";
 
-export const dynamic = "force-dynamic";
 export async function GET(_request:Request,context:{params:Promise<{id:string}>}) {
   const session=await getCurrentSession();
   if(!session)return errorResponse(401,"SESSION_EXPIRED","Sign in to view your application history.");

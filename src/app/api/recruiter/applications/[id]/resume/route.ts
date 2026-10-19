@@ -5,7 +5,6 @@ import { errorResponse } from "@/lib/http";
 import { requireRecruiter } from "@/lib/recruiter-auth";
 import { sanitizeOriginalFilename } from "@/lib/application-validation";
 
-export const dynamic = "force-dynamic";
 export async function GET(_request:Request,context:{params:Promise<{id:string}>}) {
   const auth=await requireRecruiter();
   if(!auth.session)return auth.response;
