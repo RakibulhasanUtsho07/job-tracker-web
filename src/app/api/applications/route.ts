@@ -27,7 +27,8 @@ function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as {code?:unknown}).code === "23505";
 }
 async function saveIdempotency(userId:string,key:string,status:number,body:Record<string,unknown>):Promise<void> {
-  await getPostgres().unsafe('INSERT INTO "IdempotencyRecord" ("userId","idempotencyKey","responseStatus","responseJson") VALUES ($1,$2,$3,$4::jsonb) ON CONFLICT ("userId","idempotencyKey") DO NOTHING',[userId,key,status,JSON.stringify(body)]);
+  const sql = getPostgres();
+  await sql.unsafe('INSERT INTO "IdempotencyRecord" ("userId","idempotencyKey","responseStatus","responseJson") VALUES ($1,$2,$3,$4::jsonb) ON CONFLICT ("userId","idempotencyKey") DO NOTHING',[userId,key,status,sql.json(body)]);
 }
 export async function GET() {
   const session = await getCurrentSession();
@@ -102,7 +103,7 @@ export async function POST(request:Request) {
       const existing = await tx.unsafe('SELECT "id" FROM "Application" WHERE "candidateId"=$1 AND "jobId"=$2 LIMIT 1',[session.user.id,roleId]);
       if (existing[0]) {
         const body = {code:"ALREADY_APPLIED",message:"You already applied for this role.",applicationId:String(existing[0].id),existingApplicationUrl:"/dashboard"};
-        await tx.unsafe('INSERT INTO "IdempotencyRecord" ("userId","idempotencyKey","responseStatus","responseJson") VALUES ($1,$2,409,$3::jsonb) ON CONFLICT DO NOTHING',[session.user.id,key,JSON.stringify(body)]);
+        await tx.unsafe('INSERT INTO "IdempotencyRecord" ("userId","idempotencyKey","responseStatus","responseJson") VALUES ($1,$2,409,$3::jsonb) ON CONFLICT DO NOTHING',[session.user.id,key,tx.json(body)]);
         return {status:409,body,created:false};
       }
       const now = new Date();
@@ -116,7 +117,7 @@ export async function POST(request:Request) {
         [randomUUID(),applicationId,session.user.id,"APPLIED","USER_ACTION"]);
       const body = {id:applicationId,roleId,roleTitle:role.title,status:"submitted",submittedAt:now.getTime()};
       await tx.unsafe('INSERT INTO "IdempotencyRecord" ("userId","idempotencyKey","responseStatus","responseJson") VALUES ($1,$2,201,$3::jsonb)',
-        [session.user.id,key,JSON.stringify(body)]);
+        [session.user.id,key,tx.json(body)]);
       return {status:201,body,created:true};
     });
     if (outcome.status === 201 && "created" in outcome && outcome.created) {

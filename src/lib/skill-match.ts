@@ -65,7 +65,7 @@ export async function analyzeAndPersistMatch(applicationId: string, jobId: strin
     await sql.unsafe(
       'INSERT INTO "MatchAnalysis" ("id","applicationId","algorithmVersion","overallScore","skillCoverageScore","textSimilarityScore","matchedSkills","missingRequiredSkills","analysisStatus","analysisMessage") VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10)',
       [randomUUID(),applicationId,result.algorithmVersion,result.overallScore,result.skillCoverageScore,null,
-       JSON.stringify(result.matchedSkills),JSON.stringify(result.missingRequiredSkills),result.analysisStatus,result.analysisMessage]);
+       sql.json(result.matchedSkills),sql.json(result.missingRequiredSkills),result.analysisStatus,result.analysisMessage]);
   } catch (error) {
     // Analysis must not roll back a valid application or leak resume content.
     console.error("SkillMatch analysis could not be stored.",error);

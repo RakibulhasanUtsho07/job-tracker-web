@@ -128,7 +128,7 @@ try{
     try{payload=JSON.parse(String(row.response_json));}catch{throw new Error("Malformed idempotency JSON for key "+key+"; migration stopped.");}
     if(!payload||typeof payload!=="object"||Array.isArray(payload))throw new Error("Invalid idempotency response for key "+key+".");
     const inserted=await sql.unsafe('INSERT INTO "IdempotencyRecord" ("userId","idempotencyKey","responseStatus","responseJson","createdAt") VALUES ($1,$2,$3,$4::jsonb,$5) ON CONFLICT ("userId","idempotencyKey") DO NOTHING RETURNING "idempotencyKey"',
-      [String(row.user_id),key,code,JSON.stringify(payload),dateFromEpoch(row.created_at)]);
+      [String(row.user_id),key,code,sql.json(payload),dateFromEpoch(row.created_at)]);
     counts.idempotency+=inserted.length;
   }
   console.log("SQLite import finished. The source database and files were not deleted or modified.");
