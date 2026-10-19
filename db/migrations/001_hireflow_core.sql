@@ -29,7 +29,38 @@ UPDATE "User"
 SET "role" = UPPER("role")
 WHERE "role" IS NOT NULL AND "role" <> UPPER("role");
 
-DO $$
+UPDATE "User"
+SET "role" = 'CANDIDATE'
+WHERE "role" IS NULL;
+
+ALTER TABLE "User"
+  ALTER COLUMN "role" SET DEFAULT 'CANDIDATE',
+  ALTER COLUMN "role" SET NOT NULL;
+
+-- The identity provider should already normalize email on signup; canonicalize
+-- existing rows safely before enforcing case/whitespace-insensitive uniqueness.
+DO $
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM "User"
+    GROUP BY LOWER(BTRIM("email"))
+    HAVING COUNT(*) > 1
+  ) THEN
+    RAISE EXCEPTION
+      'Cannot normalize user emails: multiple existing accounts share the same trimmed lowercase email';
+  END IF;
+END
+$;
+
+UPDATE "User"
+SET "email" = LOWER(BTRIM("email"))
+WHERE "email" <> LOWER(BTRIM("email"));
+
+CREATE UNIQUE INDEX IF NOT EXISTS "User_email_normalized_unique_idx"
+  ON "User" (LOWER(BTRIM("email")));
+
+DO $
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
