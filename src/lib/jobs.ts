@@ -12,9 +12,13 @@ function mapJob(row:DbJob):JobRole {
   const postedAt=(row.createdAt instanceof Date ? row.createdAt : new Date(String(row.createdAt))).getTime();
   const days=Number.isFinite(postedAt)?Math.max(0,Math.floor((Date.now()-postedAt)/86400000)):0;
   const postedLabel=days<1?"Posted today":days===1?"Posted yesterday":days<7?"Posted "+days+" days ago":"Recently posted";
+  const employmentLabels: Record<string, JobRole["employmentType"]> = {
+    FULL_TIME: "Full-time", PART_TIME: "Part-time", CONTRACT: "Contract",
+    INTERNSHIP: "Internship", TEMPORARY: "Temporary",
+  };
   return {id:String(row.id),title:String(row.title),department,location:String(row.location||"Location flexible"),
     workMode:row.workMode==="REMOTE"?"Remote":row.workMode==="ON_SITE"?"On-site":"Hybrid",
-    employmentType:row.employmentType==="INTERNSHIP"?"Internship":row.employmentType==="CONTRACT"?"Contract":"Full-time",
+    employmentType:row.employmentType ? employmentLabels[row.employmentType] ?? "Full-time" : "Full-time",
     level:String(row.level||"Experience varies"),salary:String(row.salary||"Compensation discussed"),
     description:String(row.description),highlights:Array.isArray(row.highlights)?row.highlights.map(String).slice(0,12):[],
     teamColor,postedLabel};

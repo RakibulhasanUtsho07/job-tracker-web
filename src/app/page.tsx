@@ -2,6 +2,8 @@ import Link from "next/link";
 import { JobDirectory } from "@/components/job-directory";
 import { getPublicJobs } from "@/lib/jobs";
 
+// Jobs are recruiter-managed database records; never freeze the catalogue at build time.
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const roles = await getPublicJobs();
@@ -57,7 +59,7 @@ export default async function Home() {
       </section>
 
       <div className="stats-strip page-shell" aria-label="Portal overview">
-        <div><strong>06</strong><span>Fictional open roles</span></div>
+        <div><strong>{roles.length.toString().padStart(2, "0")}</strong><span>Fictional open roles</span></div>
         <div><strong>03</strong><span>Ways to work</span></div>
         <div><strong>05 MB</strong><span>Private PDF resume limit</span></div>
         <div><strong>01</strong><span>Clear place to track it all</span></div>
