@@ -13,12 +13,17 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "smoke": "node scripts/smoke-test.mjs",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build"
+    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "db:migrate": "node scripts/migrate-postgres.mjs",
+    "db:seed": "node scripts/seed-postgres.mjs",
+    "db:bootstrap-recruiter": "node scripts/bootstrap-recruiter.mjs",
+    "db:import-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs"
   },
   "dependencies": {
     "next": "16.4.2",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "postgres": "3.4.9"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
