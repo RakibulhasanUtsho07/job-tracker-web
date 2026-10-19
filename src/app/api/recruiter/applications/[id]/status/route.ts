@@ -35,7 +35,7 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
         [randomUUID(),id,user.id,previous,next,"USER_ACTION",note||null]);
       return {applicationId:id,fromStatus:previous,status:next,updatedAt:Date.now()};
     });
-    if("error" in result)return errorResponse(result.error,String(result.code),String(result.message));
+    if (typeof result.error === "number") return errorResponse(result.error,String(result.code),String(result.message));
     return jsonResponse({application:result});
   } catch(error){console.error("Application status update failed.",error);return errorResponse(500,"STATUS_UPDATE_FAILED","The application status could not be updated.");}
 }

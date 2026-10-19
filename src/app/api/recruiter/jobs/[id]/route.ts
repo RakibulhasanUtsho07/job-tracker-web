@@ -75,7 +75,7 @@ export async function PATCH(request:Request,context:{params:Promise<{id:string}>
       }
       return {jobId:id,title,status:nextStatus};
     });
-    if("error" in result)return errorResponse(result.error,String(result.code),String(result.message));
+    if (typeof result.error === "number") return errorResponse(result.error,String(result.code),String(result.message));
     return jsonResponse({job:result});
   }catch(error){console.error("Recruiter job update failed.",error);return errorResponse(500,"JOB_UPDATE_FAILED","The job could not be updated.");}
 }
@@ -94,7 +94,7 @@ export async function DELETE(request:Request,context:{params:Promise<{id:string}
       await tx.unsafe('DELETE FROM "Job" WHERE "id"=$1',[id]);
       return {deleted:true,id};
     });
-    if("error" in result)return errorResponse(result.error,String(result.code),String(result.message));
+    if (typeof result.error === "number") return errorResponse(result.error,String(result.code),String(result.message));
     return jsonResponse(result);
   }catch(error){console.error("Recruiter job deletion failed.",error);return errorResponse(500,"JOB_DELETE_FAILED","The draft could not be deleted.");}
 }

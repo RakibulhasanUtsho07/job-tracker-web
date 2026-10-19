@@ -10,9 +10,9 @@ const MAX_EXTRACTED_CHARACTERS = 120_000;
 export async function extractResumeText(pdfBytes: Uint8Array): Promise<string> {
   const data = new Uint8Array(pdfBytes.byteLength);
   data.set(pdfBytes);
-  const loadingTask = getDocument({ data, useSystemFonts: true, isEvalSupported: false, stopAtErrors: false });
-  const document = await loadingTask.promise;
+  const loadingTask = getDocument({ data, useSystemFonts: true, stopAtErrors: false });
   try {
+    const document = await loadingTask.promise;
     if (document.numPages < 1 || document.numPages > MAX_PAGES) {
       throw new Error("The resume page count is outside the supported limit.");
     }
@@ -30,7 +30,7 @@ export async function extractResumeText(pdfBytes: Uint8Array): Promise<string> {
     }
     return pages.join(" ").normalize("NFKC").replace(/\s+/g, " ").trim();
   } finally {
-    await document.destroy();
+    await loadingTask.destroy();
   }
 }
 
