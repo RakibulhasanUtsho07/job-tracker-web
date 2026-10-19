@@ -198,7 +198,11 @@ CREATE TABLE IF NOT EXISTS "ApplicationEvent" (
   "note" VARCHAR(1000),
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "ApplicationEvent_initial_status_check"
-    CHECK ("fromStatus" IS NOT NULL OR "eventSource" IN ('MIGRATION_BASELINE', 'SYSTEM', 'USER_ACTION'))
+    CHECK (
+      "fromStatus" IS NOT NULL
+      OR "toStatus" = 'APPLIED'
+      OR "eventSource" IN ('MIGRATION_BASELINE', 'SYSTEM')
+    )
 );
 
 CREATE TABLE IF NOT EXISTS "MatchAnalysis" (
