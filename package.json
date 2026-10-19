@@ -23,7 +23,8 @@
     "next": "16.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "postgres": "3.4.9"
+    "postgres": "3.4.9",
+    "pdfjs-dist": "6.4.299"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
