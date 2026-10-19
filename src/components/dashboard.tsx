@@ -50,6 +50,10 @@ export function CandidateDashboard() {
   const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [totalApplications, setTotalApplications] = useState(0);
+  const [nextOffset, setNextOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -58,11 +62,14 @@ export function CandidateDashboard() {
       if (!session.user) {
         setUser(null);
         setApplications([]);
+        setTotalApplications(0);
+        setNextOffset(0);
+        setHasMore(false);
         return;
       }
       setUser(session.user as PortalUser);
 
-      const response = await fetch("/api/applications", { cache: "no-store" });
+      const response = await fetch("/api/applications?limit=25&offset=0", { cache: "no-store" });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
         setUser(null);
@@ -70,7 +77,11 @@ export function CandidateDashboard() {
         return;
       }
       if (!response.ok) throw new Error(payload.message || "We could not load your applications.");
-      setApplications(Array.isArray(payload.applications) ? payload.applications : []);
+      const firstPage = Array.isArray(payload.applications) ? payload.applications : [];
+      setApplications(firstPage);
+      setTotalApplications(Number(payload.total ?? firstPage.length));
+      setNextOffset(Number(payload.nextOffset ?? firstPage.length));
+      setHasMore(Boolean(payload.hasMore));
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "We could not load your applications.");
     } finally {
@@ -82,6 +93,36 @@ export function CandidateDashboard() {
     const handle = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(handle);
   }, [load]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    setLoadError("");
+    try {
+      const response = await fetch(`/api/applications?limit=25&offset=${nextOffset}`, { cache: "no-store" });
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        setUser(null);
+        setApplications([]);
+        setTotalApplications(0);
+        setHasMore(false);
+        return;
+      }
+      if (!response.ok) throw new Error(payload.message || "We could not load older applications.");
+      const page = Array.isArray(payload.applications) ? payload.applications as Application[] : [];
+      setApplications(current => {
+        const existing = new Set(current.map(application => application.id));
+        return [...current, ...page.filter(application => !existing.has(application.id))];
+      });
+      setTotalApplications(Number(payload.total ?? totalApplications));
+      setNextOffset(Number(payload.nextOffset ?? nextOffset + page.length));
+      setHasMore(Boolean(payload.hasMore));
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "We could not load older applications.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, nextOffset, totalApplications]);
 
   const visibleApplications = useMemo(() => applications.filter((application) => {
     if (filter === "active") return ["submitted", "in_review", "shortlisted", "interview", "offered"].includes(application.status);
@@ -95,7 +136,7 @@ export function CandidateDashboard() {
       <section className="application-empty">
         <span aria-hidden="true">⌁</span>
         <h2>Sign in to see your journey.</h2>
-        <p>Your applications are private to your account. Sign in with the local demo account to view their status and resume files.</p>
+        <p>Your applications are private to your account. Sign in with your candidate account to view application statuses and private resume files.</p>
         <Link className="button button-dark" href="/sign-in?returnTo=%2Fdashboard">Sign in to continue <span aria-hidden="true">↗</span></Link>
       </section>
     );
@@ -109,8 +150,8 @@ export function CandidateDashboard() {
           <h1 className="page-title" id="dashboard-applications-heading">Your next steps<span style={{ color: "#839e58" }}>.</span></h1>
           <p className="page-lede">{user ? `Welcome back, ${user.name}. Here is where things stand.` : "Your applications, gathered in one calm place."}</p>
         </div>
-        <div className="dashboard-count" aria-label={`${applications.length} applications submitted`}>
-          <strong>{applications.length.toString().padStart(2, "0")}</strong>
+        <div className="dashboard-count" aria-label={`${totalApplications} applications submitted`}>
+          <strong>{totalApplications.toString().padStart(2, "0")}</strong>
           <span>Applications<br />submitted</span>
         </div>
       </div>
@@ -128,10 +169,11 @@ export function CandidateDashboard() {
       ) : visibleApplications.length === 0 ? (
         <div className="application-empty">
           <span aria-hidden="true">✳</span>
-          <h2>{applications.length === 0 ? "Your next chapter can start here." : "Nothing in this view yet."}</h2>
-          <p>{applications.length === 0 ? "When you apply for a role, you'll find the submission date, status, and resume download here." : "Choose another filter to see your other applications."}</p>
-          {applications.length === 0 && <Link className="button button-dark" href="/#opportunities">Explore open roles <span aria-hidden="true">↗</span></Link>}
-          {applications.length > 0 && <button className="button button-outline" type="button" onClick={() => setFilter("all")}>Show all applications</button>}
+          <h2>{hasMore ? "No matching applications on this page yet." : applications.length === 0 ? "Your next chapter can start here." : "Nothing in this view yet."}</h2>
+          <p>{hasMore ? "Load older applications to include earlier results in this filter." : applications.length === 0 ? "When you apply for a role, you'll find the submission date, status, and resume download here." : "Choose another filter to see your other applications."}</p>
+          {hasMore && <button className="button button-dark" type="button" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Loading…" : "Load older applications"}</button>}
+          {applications.length === 0 && !hasMore && <Link className="button button-dark" href="/#opportunities">Explore open roles <span aria-hidden="true">↗</span></Link>}
+          {applications.length > 0 && !hasMore && <button className="button button-outline" type="button" onClick={() => setFilter("all")}>Show all applications</button>}
         </div>
       ) : (
         <div className="application-list">
@@ -154,6 +196,7 @@ export function CandidateDashboard() {
           ))}
         </div>
       )}
+      {visibleApplications.length > 0 && hasMore && <div className="recruiter-actions"><button className="button button-outline" type="button" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Loading older applications…" : "Load older applications"}</button><span>Showing {applications.length} of {totalApplications}</span></div>}
       <div className="safe-note"><span aria-hidden="true">▣</span><div>Only your account can see these applications. Resume downloads are authorized on the server and sent as attachments.</div></div>
     </section>
   );

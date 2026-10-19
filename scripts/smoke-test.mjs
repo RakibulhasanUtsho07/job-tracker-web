@@ -30,6 +30,29 @@ async function freePort() {
   return port;
 }
 
+function makeMinimalPdf(text) {
+  const escaped = text.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  const stream = `BT\n/F1 12 Tf\n72 720 Td\n(${escaped}) Tj\nET\n`;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${Buffer.byteLength(stream, "ascii")} >>\nstream\n${stream}endstream`,
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (let index = 0; index < objects.length; index++) {
+    offsets.push(Buffer.byteLength(pdf, "ascii"));
+    pdf += `${index + 1} 0 obj\n${objects[index]}\nendobj\n`;
+  }
+  const xrefOffset = Buffer.byteLength(pdf, "ascii");
+  pdf += "xref\n0 6\n0000000000 65535 f \n";
+  pdf += offsets.slice(1).map(offset => String(offset).padStart(10, "0") + " 00000 n \n").join("");
+  pdf += `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return Buffer.from(pdf, "ascii");
+}
+
 function formFor(roleId, blob, filename) {
   const form = new FormData();
   form.set("roleId", roleId);
@@ -97,6 +120,13 @@ async function main() {
   const roles = await rolesResponse.json();
   assert.ok(Array.isArray(roles.roles) && roles.roles.length >= 6, "role catalogue should contain the demo roles");
 
+  const oversizedLogin = await api(baseUrl + "/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "a".repeat(20_000) + "@example.invalid", password: "unused" }),
+  });
+  assert.equal(oversizedLogin.status, 413, "oversized login JSON must be rejected before parsing");
+
   const registrationEmail = "new-candidate-" + randomUUID() + "@careers.local";
   const registrationResponse = await api(baseUrl + "/api/auth/register", {
     method: "POST",
@@ -145,7 +175,8 @@ async function main() {
   assert.equal(noCsrf.status, 403, "mutations without CSRF protection should be rejected");
 
   const idempotencyKey = randomUUID();
-  const validForm = () => formFor("web-developer", new Blob(["%PDF-1.7\nFictional PDF bytes"], { type: "application/pdf" }), "candidate-resume.pdf");
+  const validPdf = makeMinimalPdf("Experienced TypeScript and React developer.");
+  const validForm = () => formFor("web-developer", new Blob([validPdf], { type: "application/pdf" }), "candidate-resume.pdf");
   const firstResponse = await api(`${baseUrl}/api/applications`, {
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey, "X-CSRF-Token": csrfToken },
@@ -163,6 +194,16 @@ async function main() {
   assert.equal(replayResponse.status, 201, "same-key retry should replay the original response");
   const replayed = await replayResponse.json();
   assert.equal(replayed.id, created.id, "same-key retry must return the original application ID");
+
+  const mismatchedReplayForm = validForm();
+  mismatchedReplayForm.set("coverLetter", "A different payload must not replay an earlier response.");
+  const mismatchedReplay = await api(`${baseUrl}/api/applications`, {
+    method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey, "X-CSRF-Token": csrfToken },
+    body: mismatchedReplayForm,
+  });
+  assert.equal(mismatchedReplay.status, 409, "reusing a key with changed application details must conflict");
+  assert.equal((await mismatchedReplay.json()).code, "IDEMPOTENCY_KEY_REUSED");
 
   const duplicateResponse = await api(`${baseUrl}/api/applications`, {
     method: "POST",
@@ -206,6 +247,15 @@ async function main() {
   csrfToken = recruiterLoginBody.csrfToken;
   assert.ok(cookie && csrfToken, "recruiter session and CSRF token should be set");
 
+  const recruiterCandidateList = await api(baseUrl + "/api/applications");
+  assert.equal(recruiterCandidateList.status, 403, "recruiters must not use candidate application APIs");
+  const recruiterCandidateSubmit = await api(baseUrl + "/api/applications", {
+    method: "POST",
+    headers: { "Idempotency-Key": randomUUID(), "X-CSRF-Token": csrfToken },
+    body: validForm(),
+  });
+  assert.equal(recruiterCandidateSubmit.status, 403, "recruiters must not submit candidate applications");
+
   const recruiterJobs = await api(baseUrl + "/api/recruiter/jobs");
   assert.equal(recruiterJobs.status, 200, "recruiter should load authorized jobs");
   assert.ok((await recruiterJobs.json()).jobs.some((job) => job.id === "web-developer"), "bootstrap should assign legacy jobs");
@@ -215,7 +265,7 @@ async function main() {
     headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
     body: JSON.stringify({ title: "Smoke Test Backend Role", department: "Engineering",
       description: "A fictional role used to verify recruiter job lifecycle transitions.",
-      location: "Dhaka", workMode: "REMOTE", employmentType: "FULL_TIME",
+      location: "Dhaka", workMode: "REMOTE", employmentType: "PART_TIME",
       requiredSkills: ["TypeScript", "PostgreSQL"], preferredSkills: ["Testing"] }),
   });
   assert.equal(draftResponse.status, 201, "recruiter should create a draft job");
@@ -230,7 +280,12 @@ async function main() {
   });
   assert.equal(publishResponse.status, 200, "valid job draft should publish");
   const publishedRoles = await api(baseUrl + "/api/roles");
-  assert.ok((await publishedRoles.json()).roles.some((job) => job.id === draft.id), "published job should be public");
+  const publishedPayload = await publishedRoles.json();
+  const publishedDraft = publishedPayload.roles.find((job) => job.id === draft.id);
+  assert.ok(publishedDraft, "published job should be public");
+  assert.equal(publishedDraft.employmentType, "Part-time", "part-time jobs must retain the correct public label");
+  const homepageWithPublishedRole = await api(baseUrl + "/");
+  assert.ok((await homepageWithPublishedRole.text()).includes("Smoke Test Backend Role"), "homepage must reflect a newly published role without rebuilding");
 
   const closeResponse = await api(baseUrl + "/api/recruiter/jobs/" + draft.id, {
     method: "PATCH", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
@@ -239,10 +294,17 @@ async function main() {
   assert.equal(closeResponse.status, 200, "published job should close");
   const afterCloseRoles = await api(baseUrl + "/api/roles");
   assert.ok(!(await afterCloseRoles.json()).roles.some((job) => job.id === draft.id), "closed job should be hidden publicly");
+  const homepageAfterClose = await api(baseUrl + "/");
+  assert.ok(!(await homepageAfterClose.text()).includes("Smoke Test Backend Role"), "homepage must remove closed roles without rebuilding");
 
   const recruiterApplications = await api(baseUrl + "/api/recruiter/applications");
   assert.equal(recruiterApplications.status, 200, "recruiter should load application queue");
-  assert.ok((await recruiterApplications.json()).applications.some((item) => item.id === created.id), "queue should contain candidate application");
+  const recruiterApplicationPayload = await recruiterApplications.json();
+  const submittedApplication = recruiterApplicationPayload.applications.find((item) => item.id === created.id);
+  assert.ok(submittedApplication, "queue should contain candidate application");
+  assert.equal(submittedApplication.matchStatus, "COMPLETED", "valid PDF text should be extracted and SkillMatch persisted");
+  assert.ok(submittedApplication.matchedSkills.includes("TypeScript") && submittedApplication.matchedSkills.includes("React"),
+    "real PDF text should match the configured required skills");
   const recruiterResume = await api(baseUrl + "/api/recruiter/applications/" + created.id + "/resume");
   assert.equal(recruiterResume.status, 200, "owning recruiter should download resume");
 
@@ -294,7 +356,37 @@ async function main() {
   const afterLogout = await api(`${baseUrl}/api/applications`);
   assert.equal(afterLogout.status, 401, "a signed-out session cannot access applications");
 
-  console.log("Smoke checks passed: candidate auth, role denial, job publication/closure, applications, idempotency, private resumes, recruiter review transitions, status history, PDF rejection, size cap and logout.");
+  const noIpHeaderResponse = await api(baseUrl + "/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "absent-account@example.invalid", password: "IncorrectPassword123!" }),
+  });
+  assert.equal(noIpHeaderResponse.status, 401, "missing client IP headers must not create a shared lockout bucket");
+
+  const rateLimitIp = "smoke-" + randomUUID();
+  for (let attempt = 0; attempt < 9; attempt++) {
+    const failedLogin = await api(baseUrl + "/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Real-IP": rateLimitIp },
+      body: JSON.stringify({ email: "absent-account@example.invalid", password: "IncorrectPassword123!" }),
+    });
+    assert.equal(failedLogin.status, 401, "failed login should be rejected before the threshold");
+  }
+  const validLoginAfterFailures = await api(baseUrl + "/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Real-IP": rateLimitIp },
+    body: JSON.stringify({ email: registrationEmail, password: "LongEnoughPassword123!" }),
+  });
+  assert.equal(validLoginAfterFailures.status, 200, "a valid login must still work before the failure threshold");
+  const lastFailedLogin = await api(baseUrl + "/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Real-IP": rateLimitIp },
+    body: JSON.stringify({ email: "absent-account@example.invalid", password: "IncorrectPassword123!" }),
+  });
+  assert.equal(lastFailedLogin.status, 429, "successful login must not erase failures for the shared client IP");
+  assert.ok(Number(lastFailedLogin.headers.get("retry-after")) > 0, "rate-limited response should include Retry-After");
+
+  console.log("Smoke checks passed: candidate auth, role separation, rate limiting, job lifecycle, applications, payload-bound idempotency, private resumes, recruiter review, imported history, real PDF matching and validation.");
 }
 
 try {

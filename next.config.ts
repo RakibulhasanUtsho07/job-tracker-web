@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // PDF.js loads its worker at runtime; bundling it into a Next server chunk breaks its relative worker URL.
+  serverExternalPackages: ["pdfjs-dist"],
   poweredByHeader: false,
   async headers() {
     return [{

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getPostgres } from "@/lib/postgres";
 import { errorResponse, hasValidCsrfToken, jsonResponse } from "@/lib/http";
 import { requireRecruiter, isObjectBody, cleanText, readSkillList } from "@/lib/recruiter-auth";
+import { parsePagination } from "@/lib/pagination";
 
 function mode(value:unknown):string|null {
   if(value===undefined||value==="Hybrid"||value==="HYBRID")return "HYBRID";
@@ -18,19 +19,25 @@ function closingDate(value:unknown):Date|null|"invalid" {
   if(typeof value!=="string"||value.length>80)return "invalid";
   const date=new Date(value);return Number.isFinite(date.getTime())?date:"invalid";
 }
-export async function GET() {
+export async function GET(request:Request) {
   const auth=await requireRecruiter();if(!auth.session)return auth.response;
   const user=auth.session.user;
-  const rows=await getPostgres().unsafe(
+  const {limit,offset}=parsePagination(request,50,100);
+  const sql=getPostgres();
+  const ownership=[user.role==="ADMIN",user.id];
+  const totalRows=await sql.unsafe('SELECT COUNT(*)::int AS "total" FROM "Job" j WHERE ($1::boolean OR j."recruiterId"=$2)',ownership);
+  const total=Number(totalRows[0]?.total??0);
+  const rows=await sql.unsafe(
     `SELECT j."id",j."title",j."department",j."description",j."location",j."workMode",
       j."employmentType",j."level",j."salary",j."status",j."closingAt",j."createdAt",j."updatedAt",
       COALESCE((SELECT jsonb_agg(jsonb_build_object('name',s."displayName",'kind',s."kind")
         ORDER BY s."kind",s."displayName") FROM "JobSkill" s WHERE s."jobId"=j."id"),'[]'::jsonb) AS "skills",
       (SELECT COUNT(*)::int FROM "Application" a WHERE a."jobId"=j."id") AS "applicationCount"
      FROM "Job" j WHERE ($1::boolean OR j."recruiterId"=$2)
-     ORDER BY j."updatedAt" DESC,j."id" ASC LIMIT 200`,
-    [user.role==="ADMIN",user.id]);
-  return jsonResponse({jobs:rows});
+     ORDER BY j."updatedAt" DESC,j."id" ASC LIMIT $3 OFFSET $4`,
+    [user.role==="ADMIN",user.id,limit,offset]);
+  const nextOffset=offset+rows.length;
+  return jsonResponse({jobs:rows,total,offset,limit,nextOffset,hasMore:nextOffset<total});
 }
 export async function POST(request:Request) {
   const auth=await requireRecruiter();if(!auth.session)return auth.response;

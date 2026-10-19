@@ -123,7 +123,10 @@ export function ApplicationForm({ role }: Props) {
     });
     setGlobalError("");
     setRetryAvailable(false);
-    if (status === "error") setStatus("idle");
+    if (status === "error") {
+      idempotencyKey.current = createSubmissionKey();
+      setStatus("idle");
+    }
   }
 
   function chooseResume(file: File | null) {
@@ -136,7 +139,10 @@ export function ApplicationForm({ role }: Props) {
     });
     setGlobalError("");
     setRetryAvailable(false);
-    if (status === "error") setStatus("idle");
+    if (status === "error") {
+      idempotencyKey.current = createSubmissionKey();
+      setStatus("idle");
+    }
   }
 
   function persistDraftForReauthentication() {

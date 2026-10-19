@@ -4,7 +4,7 @@ export type JobRole = {
   department: string;
   location: string;
   workMode: "Remote" | "Hybrid" | "On-site";
-  employmentType: "Full-time" | "Internship" | "Contract";
+  employmentType: "Full-time" | "Part-time" | "Contract" | "Internship" | "Temporary";
   level: string;
   salary: string;
   description: string;

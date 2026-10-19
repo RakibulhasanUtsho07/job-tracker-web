@@ -1,6 +1,6 @@
 # Application workflow and accessibility checks
 
-The CI smoke suite exercises the real production HTTP server, temporary SQLite database, sign-in cookie, CSRF checks, role catalogue, valid PDF submission, same-key replay, duplicate-role conflict, private download headers, fake-PDF rejection, 5 MiB limit, and sign-out.
+The CI smoke suite exercises the real production HTTP server against an isolated PostgreSQL database, sign-in cookie, CSRF checks, role catalogue, real text-bearing PDF submission and SkillMatch extraction, same-key replay versus changed-payload key reuse, duplicate-role conflict, role separation, login body-size limits and failed-login rate limiting, private download headers, fake-PDF rejection and the 5 MiB limit. Recruiter job publication/closure is checked against the live homepage without rebuilding. It creates only fictional test data.
 
 The following browser checks complement the automated smoke suite. Use fictional data only and run against a fresh local database.
 
@@ -56,7 +56,7 @@ The following browser checks complement the automated smoke suite. Use fictional
 2. Confirm a mismatched confirmation password is stopped before the request is sent, and the server rejects a shorter password.
 3. Confirm a successful registration signs the new candidate in and opens the dashboard after a full page navigation.
 4. Try registering with the same email using different letter casing; confirm the duplicate is rejected.
-5. Stop and restart the local app, sign in with the new credentials, and confirm the account remains available in `data/careers.sqlite`.
+5. Stop and restart the local app, sign in with the new credentials, and confirm the account remains available in PostgreSQL.
 6. Do not use real candidate information during QA. Email verification and password reset are not implemented.
 
 ## Reduced-motion and keyboard pass

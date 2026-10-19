@@ -12,7 +12,7 @@ export async function GET(_request:Request,context:{params:Promise<{id:string}>}
   return jsonResponse({history:rows.map(row=>({
     fromStatus:row.fromStatus===null?null:String(row.fromStatus),
     toStatus:String(row.toStatus),
-    source:row.eventSource==="MIGRATION_BASELINE"?"Imported history":"Status update",
+    source:row.eventSource==="MIGRATION_BASELINE"?"Current status at import; original transition date unavailable":"Status update",
     occurredAt:(row.createdAt instanceof Date ? row.createdAt : new Date(String(row.createdAt))).toISOString()
   }))});
 }
