@@ -38,3 +38,33 @@ jobs:
         run: npm run build
       - name: Production HTTP smoke test
         run: npm run smoke
+
+  verify-postgres-schema:
+    name: Verify PostgreSQL schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hireflow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hireflow_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/hireflow_test
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Verify repeatable schema and constraints
+        run: bash scripts/verify-postgres-migrations.sh

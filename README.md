@@ -60,6 +60,14 @@ For local QA, a demo account is also configured in .env.example:
 
 These are fictional demo credentials only. Change them before sharing any environment. In production mode the app does not silently seed the local demo account; configure DEMO_EMAIL, DEMO_PASSWORD, and optionally DEMO_NAME explicitly.
 
+## HireFlow PostgreSQL foundation (in progress)
+
+The separate `feat/hireflow-postgres-foundation` branch introduces the first PostgreSQL business-schema migration, a compatibility seed for the six legacy job IDs, append-only history triggers, and a CI smoke script that exercises a real PostgreSQL service.
+
+**Important:** the existing route handlers still use local SQLite and private local-file storage. The PostgreSQL schema is not yet connected to sign-in, job listing/CRUD, application submission, or resume upload/download. Do not set `DATABASE_URL` and assume the current runtime has switched databases. That cutover must be implemented and verified separately; existing SQLite files and private uploads must not be deleted as part of this schema scaffold.
+
+See [PostgreSQL schema foundation](docs/postgres-schema-foundation.md) for migration order and known boundaries.
+
 ## Storage and configuration
 
 - SQLite database: `data/careers.sqlite` by default. It stores candidate profiles (name, normalized email, salted password hash and salt), sessions, applications, and retry/idempotency records.
