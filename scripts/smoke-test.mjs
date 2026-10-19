@@ -195,6 +195,16 @@ async function main() {
   const replayed = await replayResponse.json();
   assert.equal(replayed.id, created.id, "same-key retry must return the original application ID");
 
+  const mismatchedReplayForm = validForm();
+  mismatchedReplayForm.set("coverLetter", "A different payload must not replay an earlier response.");
+  const mismatchedReplay = await api(`${baseUrl}/api/applications`, {
+    method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey, "X-CSRF-Token": csrfToken },
+    body: mismatchedReplayForm,
+  });
+  assert.equal(mismatchedReplay.status, 409, "reusing a key with changed application details must conflict");
+  assert.equal((await mismatchedReplay.json()).code, "IDEMPOTENCY_KEY_REUSED");
+
   const duplicateResponse = await api(`${baseUrl}/api/applications`, {
     method: "POST",
     headers: { "Idempotency-Key": randomUUID(), "X-CSRF-Token": csrfToken },
@@ -255,7 +265,7 @@ async function main() {
     headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
     body: JSON.stringify({ title: "Smoke Test Backend Role", department: "Engineering",
       description: "A fictional role used to verify recruiter job lifecycle transitions.",
-      location: "Dhaka", workMode: "REMOTE", employmentType: "FULL_TIME",
+      location: "Dhaka", workMode: "REMOTE", employmentType: "PART_TIME",
       requiredSkills: ["TypeScript", "PostgreSQL"], preferredSkills: ["Testing"] }),
   });
   assert.equal(draftResponse.status, 201, "recruiter should create a draft job");
@@ -270,7 +280,12 @@ async function main() {
   });
   assert.equal(publishResponse.status, 200, "valid job draft should publish");
   const publishedRoles = await api(baseUrl + "/api/roles");
-  assert.ok((await publishedRoles.json()).roles.some((job) => job.id === draft.id), "published job should be public");
+  const publishedPayload = await publishedRoles.json();
+  const publishedDraft = publishedPayload.roles.find((job) => job.id === draft.id);
+  assert.ok(publishedDraft, "published job should be public");
+  assert.equal(publishedDraft.employmentType, "Part-time", "part-time jobs must retain the correct public label");
+  const homepageWithPublishedRole = await api(baseUrl + "/");
+  assert.ok((await homepageWithPublishedRole.text()).includes("Smoke Test Backend Role"), "homepage must reflect a newly published role without rebuilding");
 
   const closeResponse = await api(baseUrl + "/api/recruiter/jobs/" + draft.id, {
     method: "PATCH", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
@@ -279,6 +294,8 @@ async function main() {
   assert.equal(closeResponse.status, 200, "published job should close");
   const afterCloseRoles = await api(baseUrl + "/api/roles");
   assert.ok(!(await afterCloseRoles.json()).roles.some((job) => job.id === draft.id), "closed job should be hidden publicly");
+  const homepageAfterClose = await api(baseUrl + "/");
+  assert.ok(!(await homepageAfterClose.text()).includes("Smoke Test Backend Role"), "homepage must remove closed roles without rebuilding");
 
   const recruiterApplications = await api(baseUrl + "/api/recruiter/applications");
   assert.equal(recruiterApplications.status, 200, "recruiter should load application queue");
