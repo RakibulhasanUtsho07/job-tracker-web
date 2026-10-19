@@ -357,16 +357,26 @@ async function main() {
   assert.equal(afterLogout.status, 401, "a signed-out session cannot access applications");
 
   const rateLimitIp = "smoke-" + randomUUID();
-  let lastFailedLogin;
-  for (let attempt = 0; attempt < 10; attempt++) {
-    lastFailedLogin = await api(baseUrl + "/api/auth/login", {
+  for (let attempt = 0; attempt < 9; attempt++) {
+    const failedLogin = await api(baseUrl + "/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Real-IP": rateLimitIp },
       body: JSON.stringify({ email: "absent-account@example.invalid", password: "IncorrectPassword123!" }),
     });
-    if (attempt < 9) assert.equal(lastFailedLogin.status, 401, "failed login should be rejected before the threshold");
+    assert.equal(failedLogin.status, 401, "failed login should be rejected before the threshold");
   }
-  assert.equal(lastFailedLogin.status, 429, "repeated failed logins from one client must be rate limited");
+  const validLoginAfterFailures = await api(baseUrl + "/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Real-IP": rateLimitIp },
+    body: JSON.stringify({ email: registrationEmail, password: "LongEnoughPassword123!" }),
+  });
+  assert.equal(validLoginAfterFailures.status, 200, "a valid login must still work before the failure threshold");
+  const lastFailedLogin = await api(baseUrl + "/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Real-IP": rateLimitIp },
+    body: JSON.stringify({ email: "absent-account@example.invalid", password: "IncorrectPassword123!" }),
+  });
+  assert.equal(lastFailedLogin.status, 429, "successful login must not erase failures for the shared client IP");
   assert.ok(Number(lastFailedLogin.headers.get("retry-after")) > 0, "rate-limited response should include Retry-After");
 
   console.log("Smoke checks passed: candidate auth, role separation, rate limiting, job lifecycle, applications, payload-bound idempotency, private resumes, recruiter review, imported history, real PDF matching and validation.");

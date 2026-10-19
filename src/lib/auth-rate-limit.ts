@@ -64,7 +64,3 @@ export async function recordFailedLogin(request: Request): Promise<number> {
   return remainingSeconds(rows[0]?.blockedUntil);
 }
 
-export async function clearLoginFailures(request: Request): Promise<void> {
-  if (process.env.NODE_ENV !== "production") return;
-  await getPostgres().unsafe('DELETE FROM "AuthRateLimit" WHERE "bucketKey"=$1', [bucketKey(request)]);
-}

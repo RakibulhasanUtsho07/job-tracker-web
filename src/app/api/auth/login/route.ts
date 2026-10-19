@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { authenticateCredentials, createSession } from "@/lib/pg-auth";
 import { errorResponse, isAllowedOrigin, readRequestBodyWithLimit } from "@/lib/http";
-import { clearLoginFailures, getLoginBlockSeconds, recordFailedLogin } from "@/lib/auth-rate-limit";
+import { getLoginBlockSeconds, recordFailedLogin } from "@/lib/auth-rate-limit";
 import { SESSION_COOKIE, SESSION_COOKIE_MAX_AGE_SECONDS } from "@/lib/auth";
 
 const MAX_LOGIN_BODY_BYTES = 16 * 1024;
@@ -61,8 +61,6 @@ export async function POST(request: Request) {
     if (retryAfterSeconds > 0) return rateLimitedResponse(retryAfterSeconds);
     return errorResponse(401, "SIGN_IN_FAILED", "Those email and password details did not match.");
   }
-  await clearLoginFailures(request);
-
   const session = await createSession(user.id);
   const response = NextResponse.json(
     { user, csrfToken: session.csrfToken },
