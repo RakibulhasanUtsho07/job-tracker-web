@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { ApplicationForm } from "@/components/application-form";
 import { getPublicJobById } from "@/lib/jobs";
 
 type Props = { params: Promise<{ roleId: string }> };
 
+export const instant = false;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  await connection();
   const { roleId } = await params;
   const role = await getPublicJobById(roleId);
   return { title: role ? `Apply — ${role.title}` : "Role not found" };

@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { connection } from "next/server";
 import { JobDirectory } from "@/components/job-directory";
 import { getPublicJobs } from "@/lib/jobs";
 
+export const instant = false;
+
 export default async function Home() {
-  await connection();
   const roles = await getPublicJobs();
   return (
     <main id="main-content">
