@@ -14,7 +14,7 @@ type Application = {
   experienceLevel: string;
   resumeName: string;
   resumeAvailable: boolean;
-  status: "submitted" | "in_review" | "shortlisted" | "rejected" | string;
+  status: "submitted" | "in_review" | "shortlisted" | "rejected" | "interview" | "offered" | "hired" | "withdrawn" | string;
   submittedAt: number;
 };
 
@@ -32,6 +32,10 @@ function statusLabel(status: string): string {
     case "in_review": return "In review";
     case "shortlisted": return "Shortlisted";
     case "rejected": return "Not moving forward";
+    case "interview": return "Interview";
+    case "offered": return "Offer received";
+    case "hired": return "Hired";
+    case "withdrawn": return "Withdrawn";
     default: return "Submitted";
   }
 }
@@ -144,6 +148,7 @@ export function CandidateDashboard() {
               <div className="application-row-meta">
                 <span className={`status-pill status-${application.status}`}>{statusLabel(application.status)}</span>
                 {application.resumeAvailable && <a className="resume-link" href={`/api/applications/${encodeURIComponent(application.id)}/resume`}>Download PDF ↗</a>}
+                <Link className="resume-link" href={`/dashboard/applications/${encodeURIComponent(application.id)}`}>Status history ↗</Link>
               </div>
             </article>
           ))}
