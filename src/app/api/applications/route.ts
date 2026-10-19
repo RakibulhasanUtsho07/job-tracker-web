@@ -6,6 +6,7 @@ import { getPostgres } from "@/lib/postgres";
 import { errorResponse, hasValidCsrfToken, jsonResponse, readRequestBodyWithLimit } from "@/lib/http";
 import { MAX_RESUME_BYTES, normalizeApplicationFields, sanitizeOriginalFilename, validateApplicationFields, validatePdfResume } from "@/lib/application-validation";
 import { getPublicJobById } from "@/lib/jobs";
+import { analyzeAndPersistMatch } from "@/lib/skill-match";
 
 const MAX_MULTIPART_BODY_BYTES = MAX_RESUME_BYTES + 128 * 1024;
 function privateUploadDirectory(): string {
@@ -89,14 +90,14 @@ export async function POST(request:Request) {
     const outcome = await sql.begin(async tx => {
       await tx.unsafe("SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))",[session.user.id,key]);
       const replay = await tx.unsafe('SELECT "responseStatus","responseJson" FROM "IdempotencyRecord" WHERE "userId"=$1 AND "idempotencyKey"=$2',[session.user.id,key]);
-      if (replay[0]) return {status:Number(replay[0].responseStatus),body:objectJson(replay[0].responseJson)};
+      if (replay[0]) return {status:Number(replay[0].responseStatus),body:objectJson(replay[0].responseJson),created:false};
       const eligible = await tx.unsafe('SELECT "id" FROM "Job" WHERE "id"=$1 AND "status"=$2 AND ("closingAt" IS NULL OR "closingAt">CURRENT_TIMESTAMP) FOR SHARE',[roleId,"PUBLISHED"]);
-      if (!eligible[0]) return {status:404,body:{code:"ROLE_NOT_FOUND",message:"This role is not open for applications."}};
+      if (!eligible[0]) return {status:404,body:{code:"ROLE_NOT_FOUND",message:"This role is not open for applications."},created:false};
       const existing = await tx.unsafe('SELECT "id" FROM "Application" WHERE "candidateId"=$1 AND "jobId"=$2 LIMIT 1',[session.user.id,roleId]);
       if (existing[0]) {
         const body = {code:"ALREADY_APPLIED",message:"You already applied for this role.",applicationId:String(existing[0].id),existingApplicationUrl:"/dashboard"};
         await tx.unsafe('INSERT INTO "IdempotencyRecord" ("userId","idempotencyKey","responseStatus","responseJson") VALUES ($1,$2,409,$3::jsonb) ON CONFLICT DO NOTHING',[session.user.id,key,JSON.stringify(body)]);
-        return {status:409,body};
+        return {status:409,body,created:false};
       }
       const now = new Date();
       await tx.unsafe('INSERT INTO "Application" ("id","candidateId","jobId","fullName","email","linkedinUrl","experienceLevel","coverLetter","status","submittedAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)',
@@ -110,8 +111,11 @@ export async function POST(request:Request) {
       const body = {id:applicationId,roleId,roleTitle:role.title,status:"submitted",submittedAt:now.getTime()};
       await tx.unsafe('INSERT INTO "IdempotencyRecord" ("userId","idempotencyKey","responseStatus","responseJson") VALUES ($1,$2,201,$3::jsonb)',
         [session.user.id,key,JSON.stringify(body)]);
-      return {status:201,body};
+      return {status:201,body,created:true};
     });
+    if (outcome.status === 201 && "created" in outcome && outcome.created) {
+      await analyzeAndPersistMatch(applicationId, roleId, bytes).catch(() => undefined);
+    }
     return jsonResponse(outcome.body,outcome.status);
   } catch (error) {
     if (fileWasWritten) { try { unlinkSync(storedPath); } catch { /* Preserve the database failure. */ } }
