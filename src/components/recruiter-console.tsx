@@ -42,12 +42,20 @@ export function RecruiterConsole({recruiterName}:{recruiterName:string}) {
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
+  const [jobsTotal,setJobsTotal]=useState(0);
+  const [jobsNextOffset,setJobsNextOffset]=useState(0);
+  const [jobsHasMore,setJobsHasMore]=useState(false);
+  const [loadingMoreJobs,setLoadingMoreJobs]=useState(false);
+  const [applicationsTotal,setApplicationsTotal]=useState(0);
+  const [applicationsNextOffset,setApplicationsNextOffset]=useState(0);
+  const [applicationsHasMore,setApplicationsHasMore]=useState(false);
+  const [loadingMoreApplications,setLoadingMoreApplications]=useState(false);
 
   const load=useCallback(async()=>{
     try{
       setError("");
       const [sessionResponse,jobResponse,applicationResponse]=await Promise.all([
-        fetch("/api/auth/session",{cache:"no-store"}),fetch("/api/recruiter/jobs",{cache:"no-store"}),fetch("/api/recruiter/applications",{cache:"no-store"})
+        fetch("/api/auth/session",{cache:"no-store"}),fetch("/api/recruiter/jobs?limit=50&offset=0",{cache:"no-store"}),fetch("/api/recruiter/applications?limit=50&offset=0",{cache:"no-store"})
       ]);
       const session=await sessionResponse.json().catch(()=>({}));
       if(!sessionResponse.ok||!session.user||!session.csrfToken)throw new Error("Your session expired. Sign in again.");
@@ -56,12 +64,52 @@ export function RecruiterConsole({recruiterName}:{recruiterName:string}) {
       const appBody=await applicationResponse.json().catch(()=>({}));
       if(!jobResponse.ok)throw new Error(jobsBody.message||"Could not load recruiter jobs.");
       if(!applicationResponse.ok)throw new Error(appBody.message||"Could not load applications.");
-      setJobs(Array.isArray(jobsBody.jobs)?jobsBody.jobs:[]);
-      setApplications(Array.isArray(appBody.applications)?appBody.applications:[]);
+      const firstJobs=Array.isArray(jobsBody.jobs)?jobsBody.jobs:[];
+      const firstApplications=Array.isArray(appBody.applications)?appBody.applications:[];
+      setJobs(firstJobs);
+      setJobsTotal(Number(jobsBody.total??firstJobs.length));
+      setJobsNextOffset(Number(jobsBody.nextOffset??firstJobs.length));
+      setJobsHasMore(Boolean(jobsBody.hasMore));
+      setApplications(firstApplications);
+      setApplicationsTotal(Number(appBody.total??firstApplications.length));
+      setApplicationsNextOffset(Number(appBody.nextOffset??firstApplications.length));
+      setApplicationsHasMore(Boolean(appBody.hasMore));
     }catch(e){setError(e instanceof Error?e.message:"Could not load recruiter workspace.");}
     finally{setLoading(false);}
   },[]);
   useEffect(()=>{const id=window.setTimeout(()=>{void load();},0);return()=>window.clearTimeout(id);},[load]);
+
+  const loadMoreJobs=useCallback(async()=>{
+    if(loadingMoreJobs||!jobsHasMore)return;
+    setLoadingMoreJobs(true);
+    try{
+      const response=await fetch(`/api/recruiter/jobs?limit=50&offset=${jobsNextOffset}`,{cache:"no-store"});
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.message||"Could not load more jobs.");
+      const page=Array.isArray(payload.jobs)?payload.jobs as Job[]:[];
+      setJobs(current=>{const existing=new Set(current.map(job=>job.id));return [...current,...page.filter(job=>!existing.has(job.id))];});
+      setJobsTotal(Number(payload.total??jobsTotal));
+      setJobsNextOffset(Number(payload.nextOffset??jobsNextOffset+page.length));
+      setJobsHasMore(Boolean(payload.hasMore));
+    }catch(e){setError(e instanceof Error?e.message:"Could not load more jobs.");}
+    finally{setLoadingMoreJobs(false);}
+  },[jobsHasMore,jobsNextOffset,jobsTotal,loadingMoreJobs]);
+
+  const loadMoreApplications=useCallback(async()=>{
+    if(loadingMoreApplications||!applicationsHasMore)return;
+    setLoadingMoreApplications(true);
+    try{
+      const response=await fetch(`/api/recruiter/applications?limit=50&offset=${applicationsNextOffset}`,{cache:"no-store"});
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.message||"Could not load more applications.");
+      const page=Array.isArray(payload.applications)?payload.applications as Application[]:[];
+      setApplications(current=>{const existing=new Set(current.map(app=>app.id));return [...current,...page.filter(app=>!existing.has(app.id))];});
+      setApplicationsTotal(Number(payload.total??applicationsTotal));
+      setApplicationsNextOffset(Number(payload.nextOffset??applicationsNextOffset+page.length));
+      setApplicationsHasMore(Boolean(payload.hasMore));
+    }catch(e){setError(e instanceof Error?e.message:"Could not load more applications.");}
+    finally{setLoadingMoreApplications(false);}
+  },[applicationsHasMore,applicationsNextOffset,applicationsTotal,loadingMoreApplications]);
 
   function setField<K extends keyof Editor>(key:K,value:Editor[K]){setEditor(current=>({...current,[key]:value}));}
   async function send(url:string,method:string,body?:unknown){
@@ -109,7 +157,7 @@ export function RecruiterConsole({recruiterName}:{recruiterName:string}) {
     {notice&&<div className="form-notice" role="status">{notice}</div>}
     {loading?<div className="loading-placeholder" aria-busy="true"><div className="loading-line"/><div className="loading-line"/></div>:<>
       <section className="recruiter-section" aria-labelledby="job-management-heading">
-        <div className="recruiter-section-head"><div><p className="page-kicker">WORK PACKAGE 04</p><h2 id="job-management-heading">Job management</h2><p>Create draft jobs, edit them, then explicitly publish or close them.</p></div><span className="recruiter-count">{jobs.length} jobs</span></div>
+        <div className="recruiter-section-head"><div><p className="page-kicker">WORK PACKAGE 04</p><h2 id="job-management-heading">Job management</h2><p>Create draft jobs, edit them, then explicitly publish or close them.</p></div><span className="recruiter-count">{jobsTotal} jobs</span></div>
         <form className="recruiter-form" onSubmit={saveJob}>
           <h3>{editingId?"Edit job draft":"Create a job draft"}</h3>
           <div className="recruiter-form-grid">
@@ -133,14 +181,16 @@ export function RecruiterConsole({recruiterName}:{recruiterName:string}) {
           </div>
           {!!job.skills.length&&<p className="recruiter-skills">{job.skills.map(skill=><span key={skill.kind+skill.name}>{skill.kind==="REQUIRED"?"Required: ":"Preferred: "}{skill.name}</span>)}</p>}
         </article>)}</div>}
+        {jobsHasMore&&<div className="recruiter-actions"><button className="button button-outline" type="button" disabled={loadingMoreJobs} onClick={()=>void loadMoreJobs()}>{loadingMoreJobs?"Loading jobs…":"Load more jobs"}</button><span>Showing {jobs.length} of {jobsTotal}</span></div>}
       </section>
       <section className="recruiter-section" aria-labelledby="application-review-heading">
-        <div className="recruiter-section-head"><div><p className="page-kicker">WORK PACKAGE 05–06</p><h2 id="application-review-heading">Application review</h2><p>Change a status only after review. Each transition is recorded in a server-side history log.</p></div><span className="recruiter-count">{applications.length} candidates</span></div>
+        <div className="recruiter-section-head"><div><p className="page-kicker">WORK PACKAGE 05–06</p><h2 id="application-review-heading">Application review</h2><p>Change a status only after review. Each transition is recorded in a server-side history log.</p></div><span className="recruiter-count">{applicationsTotal} candidates</span></div>
         {applications.length===0?<p className="recruiter-empty">Applications for the jobs you manage will appear here.</p>:<div className="recruiter-application-list">{applications.map(app=><article className="recruiter-card" key={app.id}>
           <div className="recruiter-card-main"><div className="recruiter-applicant"><h3>{app.fullName}</h3><p>{app.email} · {app.jobTitle}</p><p>{app.experienceLevel} · Applied {new Intl.DateTimeFormat("en-BD",{day:"numeric",month:"short",year:"numeric"}).format(new Date(app.submittedAt))}</p>{app.linkedinUrl&&<a className="resume-link" href={app.linkedinUrl} target="_blank" rel="noreferrer">LinkedIn profile ↗</a>}</div><div className="recruiter-app-review"><span className={"recruiter-status recruiter-status-"+app.statusCode.toLowerCase()}>{labelStatus(app.statusCode)}</span>{app.resumeAvailable&&<a className="resume-link" href={"/api/recruiter/applications/"+encodeURIComponent(app.id)+"/resume"}>Download private resume ↗</a>}</div></div>
           <div className="recruiter-match"><div><strong>{app.matchScore===null?"Match unavailable":app.matchScore+"% skill overlap"}</strong><p>{app.matchStatus==="UNAVAILABLE"?"Text extraction or skill definitions were unavailable.":app.matchStatus==="COMPLETED"?"Heuristic only; not a hiring probability.":"No analysis available yet."}</p></div>{app.matchedSkills.length>0&&<div><b>Matched</b><p>{app.matchedSkills.join(", ")}</p></div>}{app.missingRequiredSkills.length>0&&<div><b>Missing required</b><p>{app.missingRequiredSkills.join(", ")}</p></div>}</div>
           <details className="recruiter-review-details"><summary>Review and update status</summary><label>Next status<select value={selectedStatuses[app.id]||""} onChange={e=>setSelectedStatuses(old=>({...old,[app.id]:e.target.value}))}><option value="">Choose a next status</option>{(statusOptions[app.statusCode]||[]).map(status=><option key={status} value={status}>{labelStatus(status)}</option>)}</select></label><label>Private reviewer note (not shown to the candidate)<textarea rows={2} maxLength={1000} value={reviewNotes[app.id]||""} onChange={e=>setReviewNotes(old=>({...old,[app.id]:e.target.value}))}/></label><button className="button button-dark button-small" type="button" disabled={!selectedStatuses[app.id]} onClick={()=>void updateStatus(app)}>Save status and audit event</button></details>
         </article>)}</div>}
+        {applicationsHasMore&&<div className="recruiter-actions"><button className="button button-outline" type="button" disabled={loadingMoreApplications} onClick={()=>void loadMoreApplications()}>{loadingMoreApplications?"Loading applications…":"Load more applications"}</button><span>Showing {applications.length} of {applicationsTotal}</span></div>}
       </section>
     </>}
   </div></main>;

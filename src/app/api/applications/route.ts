@@ -8,6 +8,7 @@ import { MAX_RESUME_BYTES, normalizeApplicationFields, sanitizeOriginalFilename,
 import { getPublicJobById } from "@/lib/jobs";
 import { analyzeAndPersistMatch } from "@/lib/skill-match";
 import { fingerprintApplicationSubmission } from "@/lib/application-idempotency";
+import { parsePagination } from "@/lib/pagination";
 
 const MAX_MULTIPART_BODY_BYTES = MAX_RESUME_BYTES + 128 * 1024;
 function privateUploadDirectory(): string {
@@ -34,26 +35,32 @@ async function saveIdempotency(userId:string,key:string,requestHash:string,statu
 function idempotencyConflict() {
   return errorResponse(409,"IDEMPOTENCY_KEY_REUSED","This submission key was already used for different application details. Start a new submission to change the form.");
 }
-export async function GET() {
+export async function GET(request:Request) {
   const session = await getCurrentSession();
   if (!session) return errorResponse(401,"SESSION_EXPIRED","Please sign in to view your applications.");
   if (session.user.role !== "CANDIDATE") return errorResponse(403,"CANDIDATE_REQUIRED","Only candidate accounts can access candidate applications.");
-  const rows = await getPostgres().unsafe(
+  const {limit,offset}=parsePagination(request,25,100);
+  const sql=getPostgres();
+  const totalRows=await sql.unsafe('SELECT COUNT(*)::int AS "total" FROM "Application" WHERE "candidateId"=$1',[session.user.id]);
+  const total=Number(totalRows[0]?.total??0);
+  const rows = await sql.unsafe(
     `SELECT a."id",a."jobId" AS "roleId",j."title" AS "roleTitle",
       COALESCE(j."department",'Careers') AS "department",a."fullName",a."email",a."linkedinUrl",
       a."experienceLevel",a."coverLetter",r."originalFileName" AS "resumeName",a."status",a."submittedAt"
      FROM "Application" a
      INNER JOIN "Job" j ON j."id"=a."jobId"
      LEFT JOIN "ResumeAsset" r ON r."applicationId"=a."id"
-     WHERE a."candidateId"=$1 ORDER BY a."submittedAt" DESC LIMIT 100`,
-    [session.user.id]);
-  return jsonResponse({ applications: rows.map(row => ({
+     WHERE a."candidateId"=$1 ORDER BY a."submittedAt" DESC,a."id" ASC LIMIT $2 OFFSET $3`,
+    [session.user.id,limit,offset]);
+  const applications = rows.map(row => ({
     id:String(row.id), roleId:String(row.roleId), roleTitle:String(row.roleTitle), department:String(row.department),
     fullName:String(row.fullName), email:String(row.email), linkedinUrl:String(row.linkedinUrl || ""),
     experienceLevel:String(row.experienceLevel), coverLetter:String(row.coverLetter || ""),
     resumeName:String(row.resumeName || "Resume unavailable"), resumeAvailable:Boolean(row.resumeName),
     status:apiStatus(row.status), submittedAt:(row.submittedAt instanceof Date ? row.submittedAt : new Date(String(row.submittedAt))).getTime()
-  })) });
+  }));
+  const nextOffset=offset+applications.length;
+  return jsonResponse({applications,total,offset,limit,nextOffset,hasMore:nextOffset<total});
 }
 export async function POST(request:Request) {
   const session = await getCurrentSession();
