@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
 import { jsonResponse } from "@/lib/http";
-import { readSession, type SessionContext } from "@/lib/database";
+import { readSession, type SessionContext } from "@/lib/pg-auth";
 import { SESSION_COOKIE } from "@/lib/auth";
 
 export async function GET() {
   const cookieStore = await cookies();
-  const session: SessionContext | null = readSession(cookieStore.get(SESSION_COOKIE)?.value);
+  const session: SessionContext | null = await readSession(cookieStore.get(SESSION_COOKIE)?.value);
 
   if (!session) return jsonResponse({ user: null, csrfToken: null });
   return jsonResponse({ user: session.user, csrfToken: session.csrfToken });

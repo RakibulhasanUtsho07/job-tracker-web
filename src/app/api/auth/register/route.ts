@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSession, registerUser } from "@/lib/database";
+import { createSession, registerUser } from "@/lib/pg-auth";
 import { errorResponse, isAllowedOrigin, readRequestBodyWithLimit } from "@/lib/http";
 import { SESSION_COOKIE, SESSION_COOKIE_MAX_AGE_SECONDS } from "@/lib/auth";
 
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 
   let user;
   try {
-    user = registerUser(name, email, password);
+    user = await registerUser(name, email, password);
   } catch (error) {
     console.error("Account registration failed.", error);
     return errorResponse(500, "REGISTRATION_FAILED", "We could not create your account. Please try again.");
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     return errorResponse(409, "EMAIL_IN_USE", "An account with this email already exists. Sign in instead.");
   }
 
-  const session = createSession(user.id);
+  const session = await createSession(user.id);
   const response = NextResponse.json(
     { user, csrfToken: session.csrfToken },
     { status: 201, headers: { "Cache-Control": "no-store" } },

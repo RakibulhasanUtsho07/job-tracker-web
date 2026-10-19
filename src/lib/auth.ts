@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
-import { createSession, deleteSession, readSession, type PortalUser, type SessionContext } from "@/lib/database";
+import { createSession, deleteSession, readSession, type PortalUser, type SessionContext } from "@/lib/pg-auth";
 
 export const SESSION_COOKIE = "careers_session";
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
@@ -21,5 +21,5 @@ export function startSession(user: PortalUser) {
 }
 
 export async function endCurrentSession(): Promise<void> {
-  deleteSession(await getCookieToken());
+  await deleteSession(await getCookieToken());
 }
