@@ -15,7 +15,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ApplyPage({ params }: Props) {
-  await connection();
   const { roleId } = await params;
   const role = await getPublicJobById(roleId);
   if (!role) notFound();
