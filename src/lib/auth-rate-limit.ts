@@ -6,13 +6,15 @@ const WINDOW_MS = 15 * 60 * 1000;
 const MAX_FAILURES = 10;
 const BLOCK_MS = 15 * 60 * 1000;
 
-function bucketKey(request: Request): string {
-  // Prefer a reverse-proxy supplied single client IP. If only X-Forwarded-For
-  // exists, use its right-most entry to avoid trusting client-prepended values.
+function bucketKey(request: Request): string | null {
+  // The reverse proxy must strip client-supplied headers and set a trusted IP.
   const realIp = request.headers.get("x-real-ip")?.trim();
   const forwarded = request.headers.get("x-forwarded-for")
     ?.split(",").map(value => value.trim()).filter(Boolean).at(-1);
-  const client = realIp || forwarded || "unknown-client";
+  const client = realIp || forwarded;
+  // Never put every visitor into one shared "unknown" bucket when no trusted IP
+  // is configured; the deployment should fix its proxy instead of locking out all users.
+  if (!client) return null;
   return createHash("sha256").update("hireflow:login-ip:" + client).digest("hex");
 }
 
@@ -26,17 +28,20 @@ function remainingSeconds(value: unknown): number {
 
 export async function getLoginBlockSeconds(request: Request): Promise<number> {
   if (process.env.NODE_ENV !== "production") return 0;
+  const key = bucketKey(request);
+  if (!key) return 0;
   const rows = await getPostgres().unsafe(
     'SELECT "blockedUntil" FROM "AuthRateLimit" WHERE "bucketKey"=$1 LIMIT 1',
-    [bucketKey(request)],
+    [key],
   );
   return remainingSeconds(rows[0]?.blockedUntil);
 }
 
 export async function recordFailedLogin(request: Request): Promise<number> {
   if (process.env.NODE_ENV !== "production") return 0;
-  const now = new Date();
   const key = bucketKey(request);
+  if (!key) return 0;
+  const now = new Date();
   const rows = await getPostgres().unsafe(
     `INSERT INTO "AuthRateLimit" ("bucketKey","windowStartedAt","attemptCount","blockedUntil","updatedAt")
      VALUES ($1,$2,1,NULL,$2)

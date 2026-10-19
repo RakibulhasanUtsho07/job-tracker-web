@@ -356,6 +356,13 @@ async function main() {
   const afterLogout = await api(`${baseUrl}/api/applications`);
   assert.equal(afterLogout.status, 401, "a signed-out session cannot access applications");
 
+  const noIpHeaderResponse = await api(baseUrl + "/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "absent-account@example.invalid", password: "IncorrectPassword123!" }),
+  });
+  assert.equal(noIpHeaderResponse.status, 401, "missing client IP headers must not create a shared lockout bucket");
+
   const rateLimitIp = "smoke-" + randomUUID();
   for (let attempt = 0; attempt < 9; attempt++) {
     const failedLogin = await api(baseUrl + "/api/auth/login", {

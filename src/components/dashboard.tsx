@@ -136,7 +136,7 @@ export function CandidateDashboard() {
       <section className="application-empty">
         <span aria-hidden="true">⌁</span>
         <h2>Sign in to see your journey.</h2>
-        <p>Your applications are private to your account. Sign in with the local demo account to view their status and resume files.</p>
+        <p>Your applications are private to your account. Sign in with your candidate account to view application statuses and private resume files.</p>
         <Link className="button button-dark" href="/sign-in?returnTo=%2Fdashboard">Sign in to continue <span aria-hidden="true">↗</span></Link>
       </section>
     );
