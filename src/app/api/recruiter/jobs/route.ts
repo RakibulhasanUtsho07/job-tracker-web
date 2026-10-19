@@ -23,7 +23,13 @@ export async function GET() {
   const auth=await requireRecruiter();if(!auth.session)return auth.response;
   const user=auth.session.user;
   const rows=await getPostgres().unsafe(
-    'SELECT j."id",j."title",j."department",j."description",j."location",j."workMode",j."employmentType",j."level",j."salary",j."status",j."closingAt",j."createdAt",j."updatedAt",COALESCE((SELECT jsonb_agg(jsonb_build_object(\\'name\\',s."displayName",\\'kind\\',s."kind") ORDER BY s."kind",s."displayName") FROM "JobSkill" s WHERE s."jobId"=j."id"),\\'[]\\'::jsonb) AS "skills",(SELECT COUNT(*)::int FROM "Application" a WHERE a."jobId"=j."id") AS "applicationCount" FROM "Job" j WHERE ($1::boolean OR j."recruiterId"=$2) ORDER BY j."updatedAt" DESC,j."id" ASC LIMIT 200',
+    `SELECT j."id",j."title",j."department",j."description",j."location",j."workMode",
+      j."employmentType",j."level",j."salary",j."status",j."closingAt",j."createdAt",j."updatedAt",
+      COALESCE((SELECT jsonb_agg(jsonb_build_object('name',s."displayName",'kind',s."kind")
+        ORDER BY s."kind",s."displayName") FROM "JobSkill" s WHERE s."jobId"=j."id"),'[]'::jsonb) AS "skills",
+      (SELECT COUNT(*)::int FROM "Application" a WHERE a."jobId"=j."id") AS "applicationCount"
+     FROM "Job" j WHERE ($1::boolean OR j."recruiterId"=$2)
+     ORDER BY j."updatedAt" DESC,j."id" ASC LIMIT 200`,
     [user.role==="ADMIN",user.id]);
   return jsonResponse({jobs:rows});
 }

@@ -13,7 +13,6 @@ let serverOutput = "";
 const tempDirectory = mkdtempSync(path.join(os.tmpdir(), "northstar-careers-smoke-"));
 const uploadPath = path.join(tempDirectory, "private-uploads");
 let demoEmail = "smoke-test-" + randomUUID() + "@careers.local";
-const demoPassword = "SmokeTestPassword123!";
 let child;
 let cookie = "";
 let csrfToken = "";

@@ -1,5 +1,5 @@
 import { getPostgres } from "@/lib/postgres";
-import { errorResponse, jsonResponse } from "@/lib/http";
+import { jsonResponse } from "@/lib/http";
 import { requireRecruiter } from "@/lib/recruiter-auth";
 
 export const dynamic = "force-dynamic";
