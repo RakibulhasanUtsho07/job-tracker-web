@@ -117,7 +117,7 @@ try{
 
     const mappedStatus=mapStatus(row.status);
     const insertedEvent=await sql.unsafe('INSERT INTO "ApplicationEvent" ("id","applicationId","actorId","fromStatus","toStatus","eventSource","note","createdAt") VALUES ($1,$2,NULL,NULL,$3,$4,$5,$6) ON CONFLICT ("id") DO NOTHING RETURNING "id"',
-      ["legacy-status-"+id,applicationId,mappedStatus,"MIGRATION_BASELINE","Imported current status; the legacy database did not retain individual prior status transitions.",dateFromEpoch(row.created_at)]);
+      ["legacy-status-"+id,applicationId,mappedStatus,"MIGRATION_BASELINE","Current status imported; original status-transition date is unavailable.",new Date()]);
     counts.history+=insertedEvent.length;
   }
 

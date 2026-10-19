@@ -30,6 +30,29 @@ async function freePort() {
   return port;
 }
 
+function makeMinimalPdf(text) {
+  const escaped = text.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  const stream = `BT\n/F1 12 Tf\n72 720 Td\n(${escaped}) Tj\nET\n`;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${Buffer.byteLength(stream, "ascii")} >>\nstream\n${stream}endstream`,
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (let index = 0; index < objects.length; index++) {
+    offsets.push(Buffer.byteLength(pdf, "ascii"));
+    pdf += `${index + 1} 0 obj\n${objects[index]}\nendobj\n`;
+  }
+  const xrefOffset = Buffer.byteLength(pdf, "ascii");
+  pdf += "xref\n0 6\n0000000000 65535 f \n";
+  pdf += offsets.slice(1).map(offset => String(offset).padStart(10, "0") + " 00000 n \n").join("");
+  pdf += `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return Buffer.from(pdf, "ascii");
+}
+
 function formFor(roleId, blob, filename) {
   const form = new FormData();
   form.set("roleId", roleId);
@@ -145,7 +168,8 @@ async function main() {
   assert.equal(noCsrf.status, 403, "mutations without CSRF protection should be rejected");
 
   const idempotencyKey = randomUUID();
-  const validForm = () => formFor("web-developer", new Blob(["%PDF-1.7\nFictional PDF bytes"], { type: "application/pdf" }), "candidate-resume.pdf");
+  const validPdf = makeMinimalPdf("Experienced TypeScript and React developer.");
+  const validForm = () => formFor("web-developer", new Blob([validPdf], { type: "application/pdf" }), "candidate-resume.pdf");
   const firstResponse = await api(`${baseUrl}/api/applications`, {
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey, "X-CSRF-Token": csrfToken },
@@ -206,6 +230,15 @@ async function main() {
   csrfToken = recruiterLoginBody.csrfToken;
   assert.ok(cookie && csrfToken, "recruiter session and CSRF token should be set");
 
+  const recruiterCandidateList = await api(baseUrl + "/api/applications");
+  assert.equal(recruiterCandidateList.status, 403, "recruiters must not use candidate application APIs");
+  const recruiterCandidateSubmit = await api(baseUrl + "/api/applications", {
+    method: "POST",
+    headers: { "Idempotency-Key": randomUUID(), "X-CSRF-Token": csrfToken },
+    body: validForm(),
+  });
+  assert.equal(recruiterCandidateSubmit.status, 403, "recruiters must not submit candidate applications");
+
   const recruiterJobs = await api(baseUrl + "/api/recruiter/jobs");
   assert.equal(recruiterJobs.status, 200, "recruiter should load authorized jobs");
   assert.ok((await recruiterJobs.json()).jobs.some((job) => job.id === "web-developer"), "bootstrap should assign legacy jobs");
@@ -242,7 +275,12 @@ async function main() {
 
   const recruiterApplications = await api(baseUrl + "/api/recruiter/applications");
   assert.equal(recruiterApplications.status, 200, "recruiter should load application queue");
-  assert.ok((await recruiterApplications.json()).applications.some((item) => item.id === created.id), "queue should contain candidate application");
+  const recruiterApplicationPayload = await recruiterApplications.json();
+  const submittedApplication = recruiterApplicationPayload.applications.find((item) => item.id === created.id);
+  assert.ok(submittedApplication, "queue should contain candidate application");
+  assert.equal(submittedApplication.matchStatus, "COMPLETED", "valid PDF text should be extracted and SkillMatch persisted");
+  assert.ok(submittedApplication.matchedSkills.includes("TypeScript") && submittedApplication.matchedSkills.includes("React"),
+    "real PDF text should match the configured required skills");
   const recruiterResume = await api(baseUrl + "/api/recruiter/applications/" + created.id + "/resume");
   assert.equal(recruiterResume.status, 200, "owning recruiter should download resume");
 
