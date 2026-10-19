@@ -11,7 +11,7 @@ const allowed: Record<string, string[]> = {
   OFFERED:["HIRED","REJECTED","WITHDRAWN"],
   HIRED:[], REJECTED:[], WITHDRAWN:[]
 };
-const accepted = new Set(["SCREENING","SHORTLISTED","INTERVIEW","OFFERED","HIRED","REJECTED","WITHDRAWN"]);
+const accepted = new Set(["APPLIED","SCREENING","SHORTLISTED","INTERVIEW","OFFERED","HIRED","REJECTED","WITHDRAWN"]);
 export async function POST(request:Request,context:{params:Promise<{id:string}>}) {
   const auth=await requireRecruiter();
   if(!auth.session)return auth.response;
