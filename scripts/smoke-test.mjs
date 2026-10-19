@@ -120,6 +120,13 @@ async function main() {
   const roles = await rolesResponse.json();
   assert.ok(Array.isArray(roles.roles) && roles.roles.length >= 6, "role catalogue should contain the demo roles");
 
+  const oversizedLogin = await api(baseUrl + "/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "a".repeat(20_000) + "@example.invalid", password: "unused" }),
+  });
+  assert.equal(oversizedLogin.status, 413, "oversized login JSON must be rejected before parsing");
+
   const registrationEmail = "new-candidate-" + randomUUID() + "@careers.local";
   const registrationResponse = await api(baseUrl + "/api/auth/register", {
     method: "POST",
@@ -332,7 +339,20 @@ async function main() {
   const afterLogout = await api(`${baseUrl}/api/applications`);
   assert.equal(afterLogout.status, 401, "a signed-out session cannot access applications");
 
-  console.log("Smoke checks passed: candidate auth, role denial, job publication/closure, applications, idempotency, private resumes, recruiter review transitions, status history, PDF rejection, size cap and logout.");
+  const rateLimitIp = "smoke-" + randomUUID();
+  let lastFailedLogin;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    lastFailedLogin = await api(baseUrl + "/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Real-IP": rateLimitIp },
+      body: JSON.stringify({ email: "absent-account@example.invalid", password: "IncorrectPassword123!" }),
+    });
+    if (attempt < 9) assert.equal(lastFailedLogin.status, 401, "failed login should be rejected before the threshold");
+  }
+  assert.equal(lastFailedLogin.status, 429, "repeated failed logins from one client must be rate limited");
+  assert.ok(Number(lastFailedLogin.headers.get("retry-after")) > 0, "rate-limited response should include Retry-After");
+
+  console.log("Smoke checks passed: candidate auth, role separation, rate limiting, job lifecycle, applications, payload-bound idempotency, private resumes, recruiter review, imported history, real PDF matching and validation.");
 }
 
 try {
