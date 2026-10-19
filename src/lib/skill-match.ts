@@ -51,7 +51,10 @@ export async function analyzeAndPersistMatch(applicationId: string, jobId: strin
     try {
       const extracted = await extractResumeText(pdfBytes);
       result = calculateSkillMatch(extracted, skills);
-    } catch {
+    } catch (error) {
+      // Keep a concise server-side diagnostic so operators can distinguish
+      // malformed PDFs from runtime/font/canvas configuration failures.
+      console.error("SkillMatch PDF text extraction failed.", error);
       result = {
         algorithmVersion: "keyword-v1" as const,
         analysisStatus: "UNAVAILABLE" as const,
