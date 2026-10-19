@@ -20,13 +20,7 @@ const emptyEditor:Editor={title:"",department:"",description:"",location:"Dhaka,
 const statusOptions:Record<string,string[]>={APPLIED:["SCREENING","SHORTLISTED","REJECTED","WITHDRAWN"],SCREENING:["SHORTLISTED","INTERVIEW","REJECTED","WITHDRAWN"],SHORTLISTED:["SCREENING","INTERVIEW","REJECTED","WITHDRAWN"],INTERVIEW:["SCREENING","SHORTLISTED","OFFERED","REJECTED","WITHDRAWN"],OFFERED:["HIRED","REJECTED","WITHDRAWN"],HIRED:[],REJECTED:[],WITHDRAWN:[]};
 const labelStatus=(s:string)=>({APPLIED:"Applied",SCREENING:"In review",SHORTLISTED:"Shortlisted",INTERVIEW:"Interview",OFFERED:"Offer",HIRED:"Hired",REJECTED:"Rejected",WITHDRAWN:"Withdrawn"}[s]||s);
 function dateLabel(value:string|null){return value?new Intl.DateTimeFormat("en-BD",{day:"numeric",month:"short",year:"numeric"}).format(new Date(value)):"No closing date";}
-function toLocalDateTimeInput(value:string|null):string {
-  if(!value)return "";
-  const date=new Date(value);
-  if(!Number.isFinite(date.getTime()))return "";
-  // datetime-local represents wall-clock time in the browser timezone, not UTC.
-  return new Date(date.getTime()-date.getTimezoneOffset()*60_000).toISOString().slice(0,16);
-}
+import { toLocalDateTimeInput } from "@/lib/local-datetime";
 function toEditor(job:Job):Editor{return {title:job.title,department:job.department||"",description:job.description,location:job.location||"",workMode:job.workMode,employmentType:job.employmentType,level:job.level||"",salary:job.salary||"",closingAt:toLocalDateTimeInput(job.closingAt),requiredSkills:job.skills.filter(s=>s.kind==="REQUIRED").map(s=>s.name).join(", "),preferredSkills:job.skills.filter(s=>s.kind==="PREFERRED").map(s=>s.name).join(", ")};}
 function parseSkills(value:string){return value.split(",").map(v=>v.trim()).filter(Boolean);}
 
