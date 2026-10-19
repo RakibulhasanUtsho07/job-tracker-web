@@ -3,7 +3,6 @@ import { getPostgres } from "@/lib/postgres";
 import { errorResponse, hasValidCsrfToken, jsonResponse } from "@/lib/http";
 import { requireRecruiter, isObjectBody, cleanText, readSkillList } from "@/lib/recruiter-auth";
 
-export const dynamic = "force-dynamic";
 function readMode(value:unknown,fallback:string):string|null {
   if(value===undefined)return fallback;
   if(value==="Remote"||value==="REMOTE")return "REMOTE";

@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { errorResponse, hasValidCsrfToken, jsonResponse } from "@/lib/http";
 import { requireRecruiter, isObjectBody } from "@/lib/recruiter-auth";
 
-export const dynamic = "force-dynamic";
 const allowed: Record<string, string[]> = {
   APPLIED:["SCREENING","SHORTLISTED","REJECTED","WITHDRAWN"],
   SCREENING:["SHORTLISTED","INTERVIEW","REJECTED","WITHDRAWN"],

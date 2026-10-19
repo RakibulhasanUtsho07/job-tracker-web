@@ -2,7 +2,6 @@ import { getPostgres } from "@/lib/postgres";
 import { jsonResponse } from "@/lib/http";
 import { requireRecruiter } from "@/lib/recruiter-auth";
 
-export const dynamic = "force-dynamic";
 function statusLabel(status: unknown): string {
   const map: Record<string,string> = { APPLIED:"submitted", SCREENING:"in_review", SHORTLISTED:"shortlisted", INTERVIEW:"interview", OFFERED:"offered", HIRED:"hired", REJECTED:"rejected", WITHDRAWN:"withdrawn" };
   return map[String(status)] ?? "submitted";

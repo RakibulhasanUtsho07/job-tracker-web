@@ -3,7 +3,6 @@ import { getPostgres } from "@/lib/postgres";
 import { errorResponse, hasValidCsrfToken, jsonResponse } from "@/lib/http";
 import { requireRecruiter, isObjectBody, cleanText, readSkillList } from "@/lib/recruiter-auth";
 
-export const dynamic = "force-dynamic";
 function mode(value:unknown):string|null {
   if(value===undefined||value==="Hybrid"||value==="HYBRID")return "HYBRID";
   if(value==="Remote"||value==="REMOTE")return "REMOTE";
