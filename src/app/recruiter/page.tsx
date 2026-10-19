@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { getCurrentSession } from "@/lib/auth";
 import { RecruiterConsole } from "@/components/recruiter-console";
 
-export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Recruiter workspace" };
 
 export default async function RecruiterPage() {
